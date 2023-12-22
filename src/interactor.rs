@@ -16,17 +16,29 @@ impl Interactor {
         }
     }
 
-    pub fn read_input(&mut self) -> Input {
+    pub fn read_input(&mut self) -> (Input, State) {
         input! {
             from &mut self.source,
             n: usize,
             m: usize,
             k: usize,
             t: usize,
-            tw: [(usize, i64); n],
-            hv: [(i64, i64); m],
+            cards: [(usize, i64); n],
+            projects: [(i64, i64); m],
         }
-        Input { n, m, k, t }
+        let cards = cards
+            .iter()
+            .copied()
+            .map(|(t, w)| (CardType::from_usize(t), w))
+            .collect();
+        (
+            Input { n, m, k, t },
+            State {
+                score: 0,
+                cards,
+                projects,
+            },
+        )
     }
 
     pub fn output_c(&self, c: usize, m: usize) {
