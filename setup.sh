@@ -1,0 +1,1 @@
+alias run="python3 run_single.py"
