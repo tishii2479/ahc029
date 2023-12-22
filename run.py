@@ -236,7 +236,7 @@ if __name__ == "__main__":
         "-s",
         "--solver-path",
         type=str,
-        default="./tools/target/release/tester ./target/release/ahc027",
+        default="./tools/target/release/tester ./target/release/ahc029",
     )
     parser.add_argument(
         "-a",

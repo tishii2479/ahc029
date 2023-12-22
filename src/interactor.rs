@@ -19,31 +19,34 @@ impl Interactor {
     pub fn read_input(&mut self) -> Input {
         input! {
             from &mut self.source,
-            d: usize,
             n: usize,
-            blocks: [(usize,usize); n],
+            m: usize,
+            k: usize,
+            t: usize,
+            tw: [(usize, i64); n],
+            hv: [(i64, i64); m],
         }
-        Input { d, n, blocks }
+        Input { n, m, k, t }
     }
 
-    pub fn output_p(&self, p: (usize, usize)) {
-        println!("{} {}", p.0, p.1);
+    pub fn output_c(&self, c: usize, m: usize) {
+        println!("{} {}", c, m);
         self.flush();
     }
 
-    pub fn read_t(&mut self) -> usize {
+    pub fn output_r(&self, r: usize) {
+        println!("{}", r);
+        self.flush();
+    }
+
+    pub fn read_status(&mut self, input: &Input) -> (Vec<(i64, i64)>, i64, Vec<(usize, i64, i64)>) {
         input! {
             from &mut self.source,
-            t: usize
+            hv: [(i64, i64); input.m],
+            money: i64,
+            twp: [(usize, i64, i64); input.k],
         }
-        t
-    }
-
-    pub fn output_q(&self, q: &Vec<(i32, (usize, usize))>) {
-        for (_, (y, x)) in q {
-            println!("{} {}", y, x);
-        }
-        self.flush();
+        (hv, money, twp)
     }
 
     fn flush(&self) {
