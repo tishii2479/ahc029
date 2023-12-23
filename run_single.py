@@ -19,5 +19,5 @@ if __name__ == "__main__":
     )
     subprocess.run(f"pbcopy < tools/out/{file}.txt", shell=True)
 
-    # df = pd.read_csv("./log/database.csv")
-    # print(df[(df.input_file == f"tools/in/{file}.txt")].sort_values("score"))
+    df = pd.read_csv("./log/database.csv")
+    print(df[(df.input_file == f"tools/in/{file}.txt")].sort_values("score"))
