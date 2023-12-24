@@ -46,7 +46,7 @@ impl State {
 
         fn eval_cancel(project: &Project) -> f64 {
             // TODO: hの大きさも考慮する
-            (project.h - project.v) as f64
+            project.h as f64 - project.v as f64
         }
 
         if p > self.score {
@@ -63,7 +63,7 @@ impl State {
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
-                    .min_by_key(|&i| self.projects[i].h)
+                    .max_by_key(|&i| (eval_work(&self.projects[i], *w) * 10000.) as i64)
                     .unwrap();
                 let eval = eval_work(&self.projects[m], *w) * b - p as f64;
                 (eval, m)
@@ -121,8 +121,8 @@ impl State {
         match card {
             Card::WorkSingle(w) => *w as f64 * b - p as f64,
             Card::WorkAll(w) => *w as f64 * self.projects.len() as f64 * b - p as f64,
-            Card::CancelSingle => 2. * b,
-            Card::CancelAll => 1. * b,
+            Card::CancelSingle => (2_f64).powf(self.invest_level as f64) - p as f64,
+            Card::CancelAll => -INF,
             Card::Invest => {
                 if self.invest_level >= MAX_INVEST_LEVEL {
                     return -INF;
@@ -169,7 +169,16 @@ fn select_best_card(
         .max_by(|i, j| evals[*i].0.partial_cmp(&evals[*j].0).unwrap())
         .unwrap();
 
-    println!("# selected: {}", selected_card);
+    println!("# eval, m, card_type, p");
+    let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
+    card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
+    for i in card_idx {
+        println!(
+            "# {} {:.3}, {}, {:?}, {}",
+            i, evals[i].0, evals[i].1, cards[i].0, cards[i].1
+        );
+    }
+
     let (selected_m, refill_card) = if new_cards.len() == 0 {
         (evals[selected_card].1, None)
     } else if selected_card < state.cards.len() {
@@ -177,6 +186,15 @@ fn select_best_card(
             .iter()
             .map(|(card, p)| state.eval_refill(card, *p, t))
             .collect::<Vec<f64>>();
+        println!("# eval_refill, m, card_type, p");
+        let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
+        card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
+        for i in card_idx {
+            println!(
+                "# {} {:.3}, {:?}, {}",
+                i, eval_refills[i], cards[i].0, cards[i].1
+            );
+        }
         (
             evals[selected_card].1,
             (0..new_cards.len())
@@ -188,16 +206,6 @@ fn select_best_card(
         selected_card = state.empty_card_index().unwrap();
         (m, Some(i))
     };
-
-    println!("# eval, m, card_type, p");
-    let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
-    card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
-    for i in card_idx {
-        println!(
-            "# {} {:.3}, {}, {:?}, {}",
-            i, evals[i].0, evals[i].1, cards[i].0, cards[i].1
-        );
-    }
 
     (selected_card, selected_m, refill_card)
 }
