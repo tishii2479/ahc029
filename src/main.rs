@@ -53,7 +53,8 @@ impl State {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| (eval_work(&self.projects[i], *w, 0.8) * 10000.) as i64)
                     .unwrap();
-                let eval = eval_work(&self.projects[m], *w, 0.8) - p as f64;
+                let eval = (*w - p) as f64;
+                // let eval = eval_work(&self.projects[m], *w, 0.8) - p as f64;
                 (eval, m)
             }
             Card::WorkAll(w) => {
