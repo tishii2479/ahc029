@@ -160,7 +160,7 @@ class Runner:
         self.logger.info(
             database_df.groupby("solver_version")["score"]
             .agg("mean")
-            .sort_values()[:50]
+            .sort_values(ascending=False)[:50]
         )
 
     def add_log_to_database(self, df: pd.DataFrame) -> None:
