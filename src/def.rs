@@ -42,8 +42,6 @@ pub struct Input {
 pub struct State {
     pub invest_level: usize,
     pub score: i64,
-    /// t, w
     pub cards: Vec<Card>,
-    /// h, v
     pub projects: Vec<Project>,
 }

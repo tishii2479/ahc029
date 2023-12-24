@@ -50,10 +50,11 @@ impl State {
             return (-INF, 0);
         }
 
-        let b = if t < 800 {
+        const INVEST_LIMIT: usize = 800;
+        let b = if t < INVEST_LIMIT {
             1.
         } else {
-            1. - ((t as f64 - 800.) / 100.).sqrt()
+            1. - ((t as f64 - INVEST_LIMIT as f64) / 100.).sqrt()
         }
         .clamp(0., 1.);
 
