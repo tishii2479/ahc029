@@ -32,10 +32,13 @@ fn refill_card(
     state.cards[i] = new_cards[selected_card].0;
 }
 
+const INVEST_LIMIT: usize = 800;
+
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: &Project, w: i64) -> f64 {
             // ISSUE: ペナルティはない・もっと小さい方が良いかも
+            // ISSUE: 将来的な効果と今後の効果は異なる
             const GAMMA: f64 = 0.8;
             (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
                 - project.v as f64 * ((w - project.h).max(0) as f64).powf(GAMMA) / project.h as f64
@@ -50,7 +53,6 @@ impl State {
             return (-INF, 0);
         }
 
-        const INVEST_LIMIT: usize = 800;
         let b = if t < INVEST_LIMIT {
             1.
         } else {
@@ -104,6 +106,37 @@ impl State {
         }
     }
 
+    fn eval_refill(&self, card: &Card, p: i64, t: usize) -> f64 {
+        if p > self.score {
+            return -INF;
+        }
+
+        let b = if t < INVEST_LIMIT {
+            1.
+        } else {
+            1. - ((t as f64 - INVEST_LIMIT as f64) / 100.).sqrt()
+        }
+        .clamp(0., 1.);
+
+        match card {
+            Card::WorkSingle(w) => *w as f64 * b - p as f64,
+            Card::WorkAll(w) => *w as f64 * self.projects.len() as f64 * b - p as f64,
+            Card::CancelSingle => 2. * b,
+            Card::CancelAll => 1. * b,
+            Card::Invest => {
+                if self.invest_level >= MAX_INVEST_LEVEL {
+                    return -INF;
+                }
+                if self.score >= p {
+                    INF * b
+                } else {
+                    -INF
+                }
+            }
+            Card::None => -INF,
+        }
+    }
+
     fn empty_card_index(&self) -> Option<usize> {
         for i in 0..self.cards.len() {
             if let Card::None = self.cards[i] {
@@ -123,41 +156,50 @@ fn select_best_card(
     cards.extend(new_cards);
     let evals = cards
         .iter()
-        .map(|(card, p)| state.eval(card, *p, t))
+        .enumerate()
+        .map(|(i, (card, p))| {
+            let (mut eval, m) = state.eval(card, *p, t);
+            if i > state.cards.len() {
+                eval -= 1e-10;
+            }
+            (eval, m)
+        })
         .collect::<Vec<(f64, usize)>>();
-    let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
-    card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
+    let mut selected_card = (0..cards.len())
+        .max_by(|i, j| evals[*i].0.partial_cmp(&evals[*j].0).unwrap())
+        .unwrap();
 
-    let mut refilled_card = None;
-    let mut selected_card = None;
-    let mut selected_m = 0;
+    println!("# selected: {}", selected_card);
+    let (selected_m, refill_card) = if new_cards.len() == 0 {
+        (evals[selected_card].1, None)
+    } else if selected_card < state.cards.len() {
+        let eval_refills = new_cards
+            .iter()
+            .map(|(card, p)| state.eval_refill(card, *p, t))
+            .collect::<Vec<f64>>();
+        (
+            evals[selected_card].1,
+            (0..new_cards.len())
+                .max_by(|i, j| eval_refills[*i].partial_cmp(&eval_refills[*j]).unwrap()),
+        )
+    } else {
+        let m = evals[selected_card].1;
+        let i = selected_card - state.cards.len();
+        selected_card = state.empty_card_index().unwrap();
+        (m, Some(i))
+    };
 
     println!("# eval, m, card_type, p");
+    let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
+    card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
     for i in card_idx {
         println!(
-            "# {:.3}, {}, {:?}, {}",
-            evals[i].0, evals[i].1, cards[i].0, cards[i].1
+            "# {} {:.3}, {}, {:?}, {}",
+            i, evals[i].0, evals[i].1, cards[i].0, cards[i].1
         );
-
-        let is_exisiting_card = i < state.cards.len();
-        if is_exisiting_card {
-            if selected_card.is_none() {
-                selected_card = Some(i);
-                selected_m = evals[i].1;
-            }
-        } else {
-            if selected_card.is_none() {
-                // 前使われた場所を指定する
-                selected_card = state.empty_card_index();
-                selected_m = evals[i].1;
-            }
-            if refilled_card.is_none() {
-                refilled_card = Some(i - state.cards.len());
-            }
-        }
     }
 
-    (selected_card.unwrap(), selected_m, refilled_card)
+    (selected_card, selected_m, refill_card)
 }
 
 fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
