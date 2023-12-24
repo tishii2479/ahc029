@@ -36,8 +36,8 @@ impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: (i64, i64), w: i64) -> f64 {
             // TODO: wの大きさを勘案する
-            project.1 as f64 * (project.0.min(w) as f64 - ((w - project.0).max(0) as f64).powf(1.2))
-                / project.0 as f64
+            (w as f64 / project.0 as f64).min(1.).powf(2.) * project.1 as f64
+                - project.1 as f64 * ((w - project.0).max(0) as f64).powf(1.2) / project.0 as f64
         }
 
         fn eval_cancel(project: (i64, i64)) -> f64 {
@@ -54,6 +54,7 @@ impl State {
             1. - ((t as f64 - 800.) / 100.).sqrt()
         }
         .clamp(0., 1.);
+
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
@@ -74,7 +75,7 @@ impl State {
             }
             Card::CancelSingle => {
                 let m = (0..self.projects.len())
-                    .min_by_key(|&i| self.projects[i].0)
+                    .max_by_key(|&i| (eval_cancel(self.projects[i]) * 10000.) as i64)
                     .unwrap();
                 let eval = eval_cancel(self.projects[m]) * b - p as f64;
                 (eval, m)
@@ -182,6 +183,7 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     let new_cards = read_status(state, input, interactor);
     refill_card(0, &new_cards, state, interactor);
 
+    // ビジュアライズ用
     use std::io::Write;
     let mut file = std::fs::File::create("score.log").unwrap();
     writeln!(&mut file, "{:?}", scores).unwrap();
