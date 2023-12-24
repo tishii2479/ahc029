@@ -70,7 +70,7 @@ class Runner:
         ignore: bool = False,
     ) -> pd.DataFrame:
         inputs = list(map(lambda x: self.input_class(x[0]), cases))
-        results = Parallel(n_jobs=-1, verbose=10)(
+        results = Parallel(n_jobs=-1, verbose=10, batch_size=4)(
             delayed(self.run_case)(input_file, output_file)
             for input_file, output_file in cases
         )

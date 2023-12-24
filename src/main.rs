@@ -83,9 +83,7 @@ impl State {
             }
             Card::Invest => {
                 // 残り期間の半分を超えていたら増資はしない
-                if self.invest_level >= MAX_INVEST_LEVEL
-                    || (t - self.last_invest_round) * 2 >= (1000 - self.last_invest_round)
-                {
+                if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return (-INF, 0);
                 }
                 let eval = if self.score >= p { INF } else { -INF };
@@ -114,9 +112,7 @@ impl State {
             Card::CancelAll => -INF,
             Card::Invest => {
                 // 残り期間の半分を超えていたら増資はしない
-                if self.invest_level >= MAX_INVEST_LEVEL
-                    || (t - self.last_invest_round) * 2 >= (1000 - self.last_invest_round)
-                {
+                if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return -INF;
                 }
                 if self.score >= p {
@@ -127,6 +123,12 @@ impl State {
             }
             Card::None => -INF,
         }
+    }
+
+    fn should_invest(&self, t: usize) -> bool {
+        let mean_round = self.last_invest_round as f64 / self.invest_level.max(1) as f64;
+        let remain_round = (1000 - t) as f64;
+        remain_round >= mean_round
     }
 
     fn empty_card_index(&self) -> Option<usize> {
