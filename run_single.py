@@ -35,4 +35,7 @@ if __name__ == "__main__":
     plt.plot(scores)
     for r in invest_rounds:
         plt.plot([r, r], [0, max(scores)], color="blue")
+    plt.title(f"seed: {file}")
+    plt.xlabel("round")
+    plt.ylabel("score")
     plt.show()

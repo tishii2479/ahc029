@@ -131,6 +131,9 @@ class Runner:
 
         self.logger.info(f"Raw score mean: {score_df.score.mean()}")
         self.logger.info(f"Relative score mean: {score_df['relative_score'].mean()}")
+        self.logger.info(
+            f"Relative score median: {score_df['relative_score'].median()}"
+        )
         self.logger.info("Top 10 improvements:")
         self.logger.info(
             score_df.sort_values(by="relative_score", ascending=False)[:10]

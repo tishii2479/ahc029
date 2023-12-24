@@ -35,9 +35,10 @@ fn refill_card(
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: (i64, i64), w: i64) -> f64 {
-            // TODO: wの大きさを勘案する
+            // ISSUE: ペナルティはない・もっと小さい方が良いかも
+            const GAMMA: f64 = 0.8;
             (w as f64 / project.0 as f64).min(1.).powf(2.) * project.1 as f64
-                - project.1 as f64 * ((w - project.0).max(0) as f64).powf(1.2) / project.0 as f64
+                - project.1 as f64 * ((w - project.0).max(0) as f64).powf(GAMMA) / project.0 as f64
         }
 
         fn eval_cancel(project: (i64, i64)) -> f64 {
@@ -128,6 +129,7 @@ fn select_best_card(
     let mut refilled_card = None;
     let mut selected_card = None;
     let mut selected_m = 0;
+
     println!("# eval, m, card_type, p");
     for i in card_idx {
         println!(
@@ -184,10 +186,12 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     refill_card(0, &new_cards, state, interactor);
 
     // ビジュアライズ用
-    use std::io::Write;
-    let mut file = std::fs::File::create("score.log").unwrap();
-    writeln!(&mut file, "{:?}", scores).unwrap();
-    writeln!(&mut file, "{:?}", invest_rounds).unwrap();
+    if cfg!(feature = "local") {
+        use std::io::Write;
+        let mut file = std::fs::File::create("score.log").unwrap();
+        writeln!(&mut file, "{:?}", scores).unwrap();
+        writeln!(&mut file, "{:?}", invest_rounds).unwrap();
+    }
 
     eprintln!("invest_level:    {}", state.invest_level);
 }
