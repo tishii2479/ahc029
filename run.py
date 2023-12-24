@@ -190,20 +190,21 @@ class Runner:
 
 @dataclasses.dataclass
 class Input(IInput):
+    n: int
+    m: int
+    k: int
+
     def __init__(self, in_file: str) -> None:
-        pass
+        with open(in_file, "r") as f:
+            n, m, k, _ = map(int, f.readline().split())
+        self.n = n
+        self.m = m
+        self.k = k
 
 
 @dataclasses.dataclass
 class Param(IParam):
-    mark_count: int
-    measure_count: int
-
-    def to_str(self) -> str:
-        return f"{self.mark_count} {self.measure_count}"
-
-    def to_dict(self) -> dict:
-        return {"mark_count": self.mark_count, "measure_count": self.measure_count}
+    pass
 
 
 @dataclasses.dataclass
@@ -212,6 +213,7 @@ class Result(IResult):
     solver_version: str
     score: int
     duration: float
+    invest_level: int
 
     def __init__(self, stderr: str, input_file: str, solver_version: str):
         self.input_file = input_file
@@ -226,6 +228,7 @@ class Result(IResult):
             exit(1)
         self.score = result_json["score"]
         self.duration = result_json["duration"]
+        self.invest_level = result_json["invest_level"]
 
 
 if __name__ == "__main__":

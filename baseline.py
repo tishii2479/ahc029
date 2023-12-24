@@ -118,7 +118,7 @@ def main() -> None:
     n, m, k, t = map(int, input().split())
     solver = Solver(n, m, k, t)
     score = solver.solve()
-    result = {"score": score, "duration": 0.1}
+    result = {"score": score, "duration": 0.1, "invest_level": 0}
     print(f"result: {json.dumps(result)}", file=sys.stderr)
 
 

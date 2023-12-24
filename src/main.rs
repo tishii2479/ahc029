@@ -37,8 +37,6 @@ const INVEST_LIMIT: usize = 800;
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: &Project, w: i64) -> f64 {
-            // ISSUE: ペナルティはない・もっと小さい方が良いかも
-            // ISSUE: 将来的な効果と今後の効果は異なる
             const GAMMA: f64 = 0.8;
             (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
                 - ((w - project.h).max(0) as f64).powf(GAMMA)
@@ -253,8 +251,9 @@ fn main() {
 
     solve(&mut state, &input, &mut interactor);
     eprintln!(
-        "result: {{\"score\": {}, \"duration\": {:.4}}}",
+        "result: {{\"score\": {}, \"duration\": {:.4}, \"invest_level\": {}}}",
         state.score,
-        time::elapsed_seconds()
+        time::elapsed_seconds(),
+        state.invest_level,
     );
 }
