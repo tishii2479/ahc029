@@ -11,6 +11,12 @@ pub enum Card {
     None,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Project {
+    pub h: i64,
+    pub v: i64,
+}
+
 impl Card {
     pub fn from_tw(t: usize, w: i64) -> Card {
         match t {
@@ -39,5 +45,5 @@ pub struct State {
     /// t, w
     pub cards: Vec<Card>,
     /// h, v
-    pub projects: Vec<(i64, i64)>,
+    pub projects: Vec<Project>,
 }

@@ -34,15 +34,16 @@ fn refill_card(
 
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
-        fn eval_work(project: (i64, i64), w: i64) -> f64 {
+        fn eval_work(project: &Project, w: i64) -> f64 {
             // ISSUE: ペナルティはない・もっと小さい方が良いかも
             const GAMMA: f64 = 0.8;
-            (w as f64 / project.0 as f64).min(1.).powf(2.) * project.1 as f64
-                - project.1 as f64 * ((w - project.0).max(0) as f64).powf(GAMMA) / project.0 as f64
+            (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
+                - project.v as f64 * ((w - project.h).max(0) as f64).powf(GAMMA) / project.h as f64
         }
 
-        fn eval_cancel(project: (i64, i64)) -> f64 {
-            (project.0 - project.1) as f64
+        fn eval_cancel(project: &Project) -> f64 {
+            // TODO: hの大きさも考慮する
+            (project.h - project.v) as f64
         }
 
         if p > self.score {
@@ -59,16 +60,16 @@ impl State {
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
-                    .min_by_key(|&i| self.projects[i].0)
+                    .min_by_key(|&i| self.projects[i].h)
                     .unwrap();
-                let eval = eval_work(self.projects[m], *w) * b - p as f64;
+                let eval = eval_work(&self.projects[m], *w) * b - p as f64;
                 (eval, m)
             }
             Card::WorkAll(w) => {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| eval_work(*proj, *w))
+                    .map(|proj| eval_work(&proj, *w))
                     .sum::<f64>()
                     * b
                     - p as f64;
@@ -76,16 +77,16 @@ impl State {
             }
             Card::CancelSingle => {
                 let m = (0..self.projects.len())
-                    .max_by_key(|&i| (eval_cancel(self.projects[i]) * 10000.) as i64)
+                    .max_by_key(|&i| (eval_cancel(&self.projects[i]) * 10000.) as i64)
                     .unwrap();
-                let eval = eval_cancel(self.projects[m]) * b - p as f64;
+                let eval = eval_cancel(&self.projects[m]) * b - p as f64;
                 (eval, m)
             }
             Card::CancelAll => {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| eval_cancel(*proj))
+                    .map(|proj| eval_cancel(proj))
                     .sum::<f64>()
                     * b
                     - p as f64;

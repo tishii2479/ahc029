@@ -24,8 +24,9 @@ impl Interactor {
             k: usize,
             t: usize,
             cards: [(usize, i64); n],
-            projects: [(i64, i64); m],
+            hv: [(i64, i64); m],
         }
+        let projects = hv.iter().copied().map(|(h, v)| Project { h, v }).collect();
         let cards = cards
             .iter()
             .copied()
@@ -52,19 +53,20 @@ impl Interactor {
         self.flush();
     }
 
-    pub fn read_status(&mut self, input: &Input) -> (Vec<(i64, i64)>, i64, Vec<(Card, i64)>) {
+    pub fn read_status(&mut self, input: &Input) -> (Vec<Project>, i64, Vec<(Card, i64)>) {
         input! {
             from &mut self.source,
             hv: [(i64, i64); input.m],
             money: i64,
             twp: [(usize, i64, i64); input.k],
         }
+        let projects = hv.iter().copied().map(|(h, v)| Project { h, v }).collect();
         let cards: Vec<(Card, i64)> = twp
             .iter()
             .copied()
             .map(|(t, w, p)| (Card::from_tw(t, w), p))
             .collect();
-        (hv, money, cards)
+        (projects, money, cards)
     }
 
     fn flush(&self) {
