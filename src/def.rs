@@ -40,6 +40,7 @@ pub struct Input {
 
 #[derive(Debug)]
 pub struct State {
+    pub last_invest_round: usize,
     pub invest_level: usize,
     pub score: i64,
     pub cards: Vec<Card>,

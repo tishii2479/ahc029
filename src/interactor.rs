@@ -35,6 +35,7 @@ impl Interactor {
         (
             Input { n, m, k, t },
             State {
+                last_invest_round: 0,
                 invest_level: 0,
                 score: 0,
                 cards,
