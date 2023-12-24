@@ -1,7 +1,7 @@
 pub const MAX_INVEST_LEVEL: usize = 20;
 pub const INF: f64 = 1e30;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Card {
     WorkSingle(i64),
     WorkAll(i64),

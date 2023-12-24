@@ -33,8 +33,9 @@ fn refill_card(
 }
 
 impl State {
-    fn eval(&self, card: &Card, p: i64) -> (f64, usize) {
+    fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: (i64, i64), w: i64) -> f64 {
+            // TODO: wの大きさを勘案する
             project.1 as f64 * (project.0.min(w) as f64 - ((w - project.0).max(0) as f64).powf(1.2))
                 / project.0 as f64
         }
@@ -46,12 +47,19 @@ impl State {
         if p > self.score {
             return (-INF, 0);
         }
+
+        let b = if t < 800 {
+            1.
+        } else {
+            1. - ((t as f64 - 800.) / 100.).sqrt()
+        }
+        .clamp(0., 1.);
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
                     .min_by_key(|&i| self.projects[i].0)
                     .unwrap();
-                let eval = eval_work(self.projects[m], *w) - p as f64;
+                let eval = eval_work(self.projects[m], *w) * b - p as f64;
                 (eval, m)
             }
             Card::WorkAll(w) => {
@@ -60,6 +68,7 @@ impl State {
                     .iter()
                     .map(|proj| eval_work(*proj, *w))
                     .sum::<f64>()
+                    * b
                     - p as f64;
                 (eval, 0)
             }
@@ -67,7 +76,7 @@ impl State {
                 let m = (0..self.projects.len())
                     .min_by_key(|&i| self.projects[i].0)
                     .unwrap();
-                let eval = eval_cancel(self.projects[m]) - p as f64;
+                let eval = eval_cancel(self.projects[m]) * b - p as f64;
                 (eval, m)
             }
             Card::CancelAll => {
@@ -76,6 +85,7 @@ impl State {
                     .iter()
                     .map(|proj| eval_cancel(*proj))
                     .sum::<f64>()
+                    * b
                     - p as f64;
                 (eval, 0)
             }
@@ -83,7 +93,7 @@ impl State {
                 if self.invest_level >= MAX_INVEST_LEVEL {
                     return (-INF, 0);
                 }
-                let eval = if self.score >= p { INF } else { -INF };
+                let eval = if self.score >= p { INF * b } else { -INF };
                 (eval, 0)
             }
             Card::None => (-INF, 0),
@@ -103,12 +113,13 @@ impl State {
 fn select_best_card(
     state: &mut State,
     new_cards: &Vec<(Card, i64)>,
+    t: usize,
 ) -> (usize, usize, Option<usize>) {
     let mut cards: Vec<(Card, i64)> = state.cards.iter().copied().map(|card| (card, 0)).collect();
     cards.extend(new_cards);
     let evals = cards
         .iter()
-        .map(|(card, p)| state.eval(card, *p))
+        .map(|(card, p)| state.eval(card, *p, t))
         .collect::<Vec<(f64, usize)>>();
     let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
     card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
@@ -119,7 +130,7 @@ fn select_best_card(
     println!("# eval, m, card_type, p");
     for i in card_idx {
         println!(
-            "# {:.3} {} {:?} {}",
+            "# {:.3}, {}, {:?}, {}",
             evals[i].0, evals[i].1, cards[i].0, cards[i].1
         );
 
@@ -145,22 +156,36 @@ fn select_best_card(
 }
 
 fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
+    let mut scores = vec![0];
+    let mut invest_rounds = vec![];
+
     // 最初のカードを出す
-    let (select_card, m, _) = select_best_card(state, &vec![]);
+    let (select_card, m, _) = select_best_card(state, &vec![], 0);
     use_card(select_card, m, state, interactor);
 
-    for _ in 0..input.t - 1 {
+    for t in 1..input.t {
         let new_cards = read_status(state, input, interactor);
 
         // 今持っているカードと新しいカードを見て、使うカード&補充するカードを決める
-        let (select_card, m, refilled_card) = select_best_card(state, &new_cards);
+        let (select_card, m, refilled_card) = select_best_card(state, &new_cards, t);
         refill_card(refilled_card.unwrap(), &new_cards, state, interactor);
+
+        if state.cards[select_card] == Card::Invest {
+            invest_rounds.push(t);
+        }
+
         use_card(select_card, m, state, interactor);
+        scores.push(state.score);
     }
 
     // 最後にカードを補充する
     let new_cards = read_status(state, input, interactor);
     refill_card(0, &new_cards, state, interactor);
+
+    use std::io::Write;
+    let mut file = std::fs::File::create("score.log").unwrap();
+    writeln!(&mut file, "{:?}", scores).unwrap();
+    writeln!(&mut file, "{:?}", invest_rounds).unwrap();
 
     eprintln!("invest_level:    {}", state.invest_level);
 }
