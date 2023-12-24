@@ -34,8 +34,8 @@ fn refill_card(
 
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
-        fn eval_work(project: &Project, w: i64, gamma: f64) -> f64 {
-            (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
+        fn eval_work(project: &Project, w: i64, alpha: f64, gamma: f64) -> f64 {
+            (w as f64 / project.h as f64).min(1.).powf(alpha) * project.v as f64
                 - ((w - project.h).max(0) as f64).powf(gamma)
         }
 
@@ -47,21 +47,20 @@ impl State {
         if p > self.score {
             return (-INF, 0);
         }
-
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
-                    .max_by_key(|&i| (eval_work(&self.projects[i], *w, 0.8) * 10000.) as i64)
+                    .max_by_key(|&i| (eval_work(&self.projects[i], *w, 2., 0.8) * 10000.) as i64)
                     .unwrap();
-                let eval = (*w - p) as f64;
-                // let eval = eval_work(&self.projects[m], *w, 0.8) - p as f64;
+                let eval =
+                    *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64).powf(0.8);
                 (eval, m)
             }
             Card::WorkAll(w) => {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| eval_work(&proj, *w, 0.5))
+                    .map(|proj| eval_work(&proj, *w, 2., 0.5))
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
@@ -83,7 +82,6 @@ impl State {
                 (eval, 0)
             }
             Card::Invest => {
-                // 残り期間の半分を超えていたら増資はしない
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return (-INF, 0);
                 }
@@ -112,7 +110,6 @@ impl State {
             Card::CancelSingle => (2_f64).powf(self.invest_level as f64) - p as f64,
             Card::CancelAll => -INF,
             Card::Invest => {
-                // 残り期間の半分を超えていたら増資はしない
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return -INF;
                 }
