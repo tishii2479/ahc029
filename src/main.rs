@@ -41,7 +41,7 @@ impl State {
             // ISSUE: 将来的な効果と今後の効果は異なる
             const GAMMA: f64 = 0.8;
             (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
-                - project.v as f64 * ((w - project.h).max(0) as f64).powf(GAMMA) / project.h as f64
+                - ((w - project.h).max(0) as f64).powf(GAMMA)
         }
 
         fn eval_cancel(project: &Project) -> f64 {
@@ -65,7 +65,7 @@ impl State {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| (eval_work(&self.projects[i], *w) * 10000.) as i64)
                     .unwrap();
-                let eval = eval_work(&self.projects[m], *w) * b - p as f64;
+                let eval = eval_work(&self.projects[m], *w) - p as f64;
                 (eval, m)
             }
             Card::WorkAll(w) => {
@@ -74,7 +74,6 @@ impl State {
                     .iter()
                     .map(|proj| eval_work(&proj, *w))
                     .sum::<f64>()
-                    * b
                     - p as f64;
                 (eval, 0)
             }
@@ -82,7 +81,7 @@ impl State {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| (eval_cancel(&self.projects[i]) * 10000.) as i64)
                     .unwrap();
-                let eval = eval_cancel(&self.projects[m]) * b - p as f64;
+                let eval = eval_cancel(&self.projects[m]) - p as f64;
                 (eval, m)
             }
             Card::CancelAll => {
@@ -91,7 +90,6 @@ impl State {
                     .iter()
                     .map(|proj| eval_cancel(proj))
                     .sum::<f64>()
-                    * b
                     - p as f64;
                 (eval, 0)
             }
