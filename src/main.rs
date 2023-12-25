@@ -34,16 +34,16 @@ fn refill_card(
 
 impl State {
     fn remain_w(&self, t: usize, p: i64) -> i64 {
-        (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + (self.score - p) * 2
+        (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + (self.score - p)
     }
 
-    fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
+    fn eval(&self, card: &Card, p: i64, t: usize, refill: bool) -> (f64, usize) {
         if p > self.score {
             return (-INF, 0);
         }
 
-        const OVER_FLOW_ALPHA: f64 = 0.5;
-        const CANCEL_ALPHA: f64 = 1.1;
+        let overflow_alpha: f64 = if refill { 0.5 } else { 2. };
+        let cancel_alpha: f64 = if refill { 1.1 } else { 5. };
 
         match card {
             Card::WorkSingle(w) => {
@@ -63,7 +63,7 @@ impl State {
                 }
                 let eval = *w as f64
                     - p as f64
-                    - ((w - self.projects[m].h).max(0) as f64) * OVER_FLOW_ALPHA;
+                    - ((w - self.projects[m].h).max(0) as f64) * overflow_alpha;
                 (eval, m)
             }
             Card::WorkAll(w) => {
@@ -86,7 +86,7 @@ impl State {
                     - (self
                         .projects
                         .iter()
-                        .map(|proj| (*w as f64 - proj.h as f64).max(0.) * OVER_FLOW_ALPHA)
+                        .map(|proj| (*w as f64 - proj.h as f64).max(0.) * overflow_alpha)
                         .sum::<f64>());
                 (eval, 0)
             }
@@ -103,7 +103,7 @@ impl State {
                     return (-INF, m);
                 }
                 let eval =
-                    self.projects[m].h as f64 * CANCEL_ALPHA - self.projects[m].v as f64 - p as f64;
+                    self.projects[m].h as f64 * cancel_alpha - self.projects[m].v as f64 - p as f64;
                 (eval, m)
             }
             Card::CancelAll => {
@@ -113,7 +113,7 @@ impl State {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| proj.h as f64 * CANCEL_ALPHA - proj.v as f64)
+                    .map(|proj| proj.h as f64 * cancel_alpha - proj.v as f64)
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
@@ -162,7 +162,7 @@ impl State {
                     -INF
                 }
             }
-            _ => self.eval(card, p, t).0,
+            _ => self.eval(card, p, t, true).0,
         }
     }
 
@@ -189,7 +189,7 @@ impl State {
         let evals: Vec<(f64, usize)> = self
             .cards
             .iter()
-            .map(|card| self.eval(&card, 0, t))
+            .map(|card| self.eval(&card, 0, t, false))
             .collect();
 
         let mut card_idx = (0..self.cards.len()).collect::<Vec<usize>>();
@@ -211,17 +211,15 @@ impl State {
     }
 
     fn invest_limit(&self) -> usize {
-        900
-        // TODO: 増資状況に合わせた方が良い
         // TODO: モンテカルロで最適なターンを求めた方が良い
-        // let invest_count = self.invest_level
-        //     + self
-        //         .cards
-        //         .iter()
-        //         .filter(|&&card| Card::Invest == card)
-        //         .count();
-        // let mean_round = self.last_invest_round / invest_count.max(1);
-        // 1000 - mean_round.max(100)
+        let invest_count = self.invest_level
+            + self
+                .cards
+                .iter()
+                .filter(|&&card| Card::Invest == card)
+                .count();
+        let mean_round = self.last_invest_round / invest_count.max(1);
+        1000 - mean_round.max(100)
     }
 
     fn cancel_limit(&self) -> usize {
