@@ -214,9 +214,47 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     for t in 1..input.t {
         let new_cards = read_status(state, input, interactor);
 
-        // 今持っているカードと新しいカードを見て、使うカード&補充するカードを決める
-        let (select_card, m, refilled_card) = select_best_card(state, &new_cards, t);
-        refill_card(refilled_card.unwrap(), &new_cards, state, interactor);
+        // 新しいカードを見て、補充するカードを決める
+        println!("# eval_refill, m, card_type, p");
+        let eval_refills: Vec<f64> = new_cards
+            .iter()
+            .map(|(card, p)| {
+                if *p <= state.score {
+                    state.eval(&card, *p, t).0
+                } else {
+                    -INF
+                }
+            })
+            .collect();
+        let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
+        card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
+        for &i in card_idx.iter() {
+            println!(
+                "# {} {:.3} {:?}, {}",
+                i, eval_refills[i], new_cards[i].0, new_cards[i].1
+            );
+        }
+
+        let new_selected_card = card_idx[0];
+        refill_card(new_selected_card, &new_cards, state, interactor);
+
+        // 今持っているカードを見て、使うカードを決める
+        println!("# eval, m, card_type, p");
+        let evals: Vec<(f64, usize)> = state
+            .cards
+            .iter()
+            .map(|card| state.eval(&card, 0, t))
+            .collect();
+        let mut card_idx = (0..state.cards.len()).collect::<Vec<usize>>();
+        card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
+        for &i in card_idx.iter() {
+            println!(
+                "# {} {:.3} {} {:?}",
+                i, evals[i].0, evals[i].1, state.cards[i]
+            );
+        }
+        let select_card = card_idx[0];
+        let m = evals[select_card].1;
 
         if state.cards[select_card] == Card::Invest {
             state.last_invest_round = t;
