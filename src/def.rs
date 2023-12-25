@@ -1,5 +1,5 @@
 pub const MAX_INVEST_LEVEL: usize = 20;
-pub const INF: f64 = 1e30;
+pub const INF: f64 = 1e18;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Card {

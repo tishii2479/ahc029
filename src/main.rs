@@ -50,7 +50,7 @@ impl State {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| {
                         if self.projects[i].h > w + self.remain_w(t, p) {
-                            return -INF as i64;
+                            return -INF as i64 - self.projects[i].h;
                         }
                         (((*w as f64 / self.projects[i].h as f64).min(1.).powf(2.)
                             * self.projects[i].v as f64
@@ -153,7 +153,7 @@ impl State {
                     .iter()
                     .filter(|&&card| card == Card::Invest)
                     .count();
-                if (self.score >= p * 2
+                if (self.score as f64 >= p as f64 * 1.5
                     && p / 2_i64.pow(self.invest_level as u32) < self.invest_cost())
                     || invest_card_count == self.cards.len() - 1
                 {
@@ -211,19 +211,20 @@ impl State {
     }
 
     fn invest_limit(&self) -> usize {
+        900
         // TODO: モンテカルロで最適なターンを求めた方が良い
-        let invest_count = self.invest_level
-            + self
-                .cards
-                .iter()
-                .filter(|&&card| Card::Invest == card)
-                .count();
-        let mean_round = self.last_invest_round / invest_count.max(1);
-        1000 - mean_round.max(100)
+        //     let invest_count = self.invest_level
+        //         + self
+        //             .cards
+        //             .iter()
+        //             .filter(|&&card| Card::Invest == card)
+        //             .count();
+        //     let mean_round = self.last_invest_round / invest_count.max(1);
+        //     1000 - mean_round.max(100)
     }
 
     fn cancel_limit(&self) -> usize {
-        980
+        960
     }
 
     fn empty_card_index(&self) -> Option<usize> {

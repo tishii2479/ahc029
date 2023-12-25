@@ -22,7 +22,5 @@ if __name__ == "__main__":
             else:
                 src.append(line)
 
-    src.append("\n")
-
     for line in src:
         print(line.rstrip())
