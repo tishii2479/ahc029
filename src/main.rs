@@ -68,7 +68,7 @@ impl State {
                     let mut remain_w = self.remain_w(t, p);
                     for p in projects {
                         if p.h - w <= remain_w {
-                            remain_w -= (p.h - w).max(0); // NOTE: max(0)を取るのが正しいが、取らない方がスコアが良い
+                            remain_w -= p.h - w; // NOTE: max(0)を取るのが正しいが、取らない方がスコアが良い
                             c += 1;
                         }
                     }
@@ -107,6 +107,7 @@ impl State {
                     .projects
                     .iter()
                     .map(|proj| proj.h as f64 * 1.1 - proj.v as f64)
+                    // .take(self.projects.len().min(3))
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
