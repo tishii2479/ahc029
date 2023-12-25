@@ -85,8 +85,18 @@ impl State {
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return (-INF, 0);
                 }
-                let eval = if self.score >= p { INF } else { -INF };
-                (eval, 0)
+                if self.cards.len()
+                    == self
+                        .cards
+                        .iter()
+                        .filter(|&&card| card == Card::Invest)
+                        .count()
+                    || t >= 800
+                    || self.last_invest_round + 1 == t
+                {
+                    return (INF, 0);
+                }
+                (-INF, 0)
             }
             Card::None => (-INF, 0),
         }
@@ -97,29 +107,18 @@ impl State {
             return -INF;
         }
 
-        let b = if t < 900 {
-            1.
-        } else {
-            1. - ((t as f64 - 900 as f64) / 100.).sqrt()
-        }
-        .clamp(0., 1.);
-
         match card {
-            Card::WorkSingle(w) => *w as f64 * b - p as f64,
-            Card::WorkAll(_) => -INF,
-            Card::CancelSingle => -INF,
-            Card::CancelAll => -INF,
             Card::Invest => {
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return -INF;
                 }
-                if self.score >= p {
+                if self.score >= p && p / 2_i64.pow(self.invest_level as u32) < 600 {
                     INF
                 } else {
                     -INF
                 }
             }
-            Card::None => -INF,
+            _ => self.eval(card, p, t).0,
         }
     }
 
@@ -127,7 +126,7 @@ impl State {
         println!("# eval_refill, m, card_type, p");
         let eval_refills: Vec<f64> = new_cards
             .iter()
-            .map(|(card, p)| self.eval(&card, *p, t).0)
+            .map(|(card, p)| self.eval_refill(&card, *p, t))
             .collect();
         let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
@@ -160,6 +159,7 @@ impl State {
     }
 
     fn should_invest(&self, t: usize) -> bool {
+        return t < 810;
         let mean_round = self.last_invest_round as f64 / self.invest_level.max(1) as f64;
         let remain_round = (1000 - t) as f64;
         remain_round >= mean_round
@@ -174,6 +174,7 @@ impl State {
         None
     }
 }
+
 fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     let mut scores = vec![0];
     let mut invest_rounds = vec![];
@@ -186,19 +187,18 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
             state.last_invest_round = t;
             invest_rounds.push(t);
         }
-
         use_card(select_card, m, state, interactor);
         scores.push(state.score);
 
         let new_cards = read_status(state, input, interactor);
 
         // 新しいカードを見て、補充するカードを決める
-        let new_selected_card = if t < input.t - 1 {
+        let new_card = if t < input.t - 1 {
             state.select_new_card(&new_cards, t)
         } else {
             0
         };
-        refill_card(new_selected_card, &new_cards, state, interactor);
+        refill_card(new_card, &new_cards, state, interactor);
     }
 
     // ビジュアライズ用
