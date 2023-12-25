@@ -34,7 +34,7 @@ fn refill_card(
 
 impl State {
     fn remain_w(&self, t: usize, p: i64) -> i64 {
-        (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + (self.score - p) * 2 / 10
+        (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + (self.score - p) * 2
     }
 
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
@@ -68,7 +68,7 @@ impl State {
                     let mut remain_w = self.remain_w(t, p);
                     for p in projects {
                         if p.h - w <= remain_w {
-                            remain_w -= p.h - w;
+                            remain_w -= (p.h - w).max(0); // NOTE: max(0)を取るのが正しいが、取らない方がスコアが良い
                             c += 1;
                         }
                     }
