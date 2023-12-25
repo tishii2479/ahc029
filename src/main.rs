@@ -32,10 +32,13 @@ fn refill_card(
     state.cards[i] = new_cards[selected_card].0;
 }
 
+const CANCEL_LIMIT: usize = 980;
+
 impl State {
-    fn is_feasible(&self, project: &Project, w: i64, t: usize) -> bool {
+    fn is_feasible(&self, project: &Project, p: i64, w: i64, t: usize) -> bool {
         project.h
-            <= w + (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + self.score * 2 / 10
+            <= w + (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
+                + (self.score - p) * 2 / 10
     }
 
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
@@ -46,19 +49,19 @@ impl State {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| {
-                        if !self.is_feasible(&self.projects[i], *w, t) {
+                        if !self.is_feasible(&self.projects[i], p, *w, t) {
                             return -INF as i64;
                         }
                         (((*w as f64 / self.projects[i].h as f64).min(1.).powf(2.)
                             * self.projects[i].v as f64
-                            - ((w - self.projects[i].h).max(0) as f64).powf(1.))
+                            - ((w - self.projects[i].h).max(0) as f64))
                             * 10000.) as i64
                     })
                     .unwrap();
-                if !self.is_feasible(&self.projects[m], *w, t) && p > 0 {
+                if !self.is_feasible(&self.projects[m], p, *w, t) && p > 0 {
                     return (-INF, m);
                 }
-                let eval = *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64).powf(1.);
+                let eval = *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64);
                 (eval, m)
             }
             Card::WorkAll(w) => {
@@ -66,24 +69,29 @@ impl State {
                     .projects
                     .iter()
                     .copied()
-                    .filter(|proj| self.is_feasible(proj, *w, t))
+                    .filter(|proj| self.is_feasible(proj, p, *w, t))
                     .collect();
                 let w_sum = *w as f64 * feasible_projects.len() as f64;
                 let eval = w_sum
                     - p as f64
                     - (w_sum - feasible_projects.iter().map(|proj| proj.h).sum::<i64>() as f64)
-                        .max(0.)
-                        .powf(1.);
+                        .max(0.);
                 (eval, 0)
             }
             Card::CancelSingle => {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| self.projects[i].h - self.projects[i].v)
                     .unwrap();
+                if t >= CANCEL_LIMIT {
+                    return (-INF, 0);
+                }
                 let eval = (&self.projects[m].h - self.projects[m].v - p) as f64;
                 (eval, m)
             }
             Card::CancelAll => {
+                if t >= CANCEL_LIMIT {
+                    return (-INF, 0);
+                }
                 let eval = self
                     .projects
                     .iter()
@@ -93,7 +101,7 @@ impl State {
                 (eval, 0)
             }
             Card::Invest => {
-                if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
+                if self.invest_level >= MAX_INVEST_LEVEL {
                     return (-INF, 0);
                 }
                 if self.cards.len()
@@ -102,8 +110,8 @@ impl State {
                         .iter()
                         .filter(|&&card| card == Card::Invest)
                         .count()
-                    || t >= 800
-                    || self.last_invest_round + 1 == t
+                    || ((t >= self.should_invest_limit() || self.last_invest_round + 1 == t)
+                        && p == 0)
                 {
                     return (INF, 0);
                 }
@@ -120,7 +128,7 @@ impl State {
 
         match card {
             Card::Invest => {
-                if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
+                if self.invest_level >= MAX_INVEST_LEVEL || t >= self.should_invest_limit() {
                     return -INF;
                 }
                 if self.score >= p && p / 2_i64.pow(self.invest_level as u32) < 600 {
@@ -173,8 +181,16 @@ impl State {
         (card_idx[0], evals[card_idx[0]].1)
     }
 
-    fn should_invest(&self, t: usize) -> bool {
-        t < 810
+    fn should_invest_limit(&self) -> usize {
+        850
+        // let invest_count = self.invest_level
+        //     + self
+        //         .cards
+        //         .iter()
+        //         .filter(|&&card| Card::Invest == card)
+        //         .count();
+        // let mean_round = self.last_invest_round / invest_count.max(1);
+        // 1000 - mean_round * 3
     }
 
     fn empty_card_index(&self) -> Option<usize> {
