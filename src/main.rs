@@ -34,9 +34,12 @@ fn refill_card(
 
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
-        fn eval_work(project: &Project, w: i64, alpha: f64, gamma: f64) -> f64 {
-            (w as f64 / project.h as f64).min(1.).powf(alpha) * project.v as f64
-                - ((w - project.h).max(0) as f64).powf(gamma)
+        fn eval_work(project: &Project, w: i64, t: usize, invest_level: usize) -> f64 {
+            if project.h > (1000 - t as i64) * 2_i64.pow(invest_level as u32) {
+                return 0.;
+            }
+            (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
+                - ((w - project.h).max(0) as f64).powf(0.8)
         }
 
         fn eval_cancel(project: &Project) -> f64 {
@@ -50,19 +53,27 @@ impl State {
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
-                    .max_by_key(|&i| (eval_work(&self.projects[i], *w, 2., 0.8) * 10000.) as i64)
+                    .max_by_key(|&i| {
+                        (eval_work(&self.projects[i], *w, t, self.invest_level) * 10000.) as i64
+                    })
                     .unwrap();
                 let eval =
                     *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64).powf(0.8);
                 (eval, m)
             }
             Card::WorkAll(w) => {
-                let eval = self
-                    .projects
-                    .iter()
-                    .map(|proj| eval_work(&proj, *w, 2., 0.5))
-                    .sum::<f64>()
-                    - p as f64;
+                // let eval = self
+                //     .projects
+                //     .iter()
+                //     .map(|proj| eval_work(&proj, *w, t, self.invest_level))
+                //     .sum::<f64>()
+                //     - p as f64;
+                let w_sum = *w as f64 * self.projects.len() as f64;
+                let eval = w_sum
+                    - p as f64
+                    - (w_sum - self.projects.iter().map(|&proj| proj.h).sum::<i64>() as f64)
+                        .max(0.)
+                        .powf(0.8);
                 (eval, 0)
             }
             Card::CancelSingle => {
@@ -123,13 +134,14 @@ impl State {
     }
 
     fn select_new_card(&self, new_cards: &Vec<(Card, i64)>, t: usize) -> usize {
-        println!("# eval_refill, m, card_type, p");
         let eval_refills: Vec<f64> = new_cards
             .iter()
             .map(|(card, p)| self.eval_refill(&card, *p, t))
             .collect();
         let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
+
+        println!("# eval_refill, m, card_type, p");
         for &i in card_idx.iter() {
             println!(
                 "# {} {:.3} {:?}, {}",
@@ -141,28 +153,28 @@ impl State {
     }
 
     fn select_use_card(&self, t: usize) -> (usize, usize) {
-        println!("# eval, m, card_type, p");
         let evals: Vec<(f64, usize)> = self
             .cards
             .iter()
             .map(|card| self.eval(&card, 0, t))
             .collect();
+
         let mut card_idx = (0..self.cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
+
+        println!("# eval, m, card_type, p");
         for &i in card_idx.iter() {
             println!(
                 "# {} {:.3} {} {:?}",
                 i, evals[i].0, evals[i].1, self.cards[i]
             );
         }
+
         (card_idx[0], evals[card_idx[0]].1)
     }
 
     fn should_invest(&self, t: usize) -> bool {
-        return t < 810;
-        let mean_round = self.last_invest_round as f64 / self.invest_level.max(1) as f64;
-        let remain_round = (1000 - t) as f64;
-        remain_round >= mean_round
+        t < 810
     }
 
     fn empty_card_index(&self) -> Option<usize> {
