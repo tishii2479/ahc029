@@ -141,7 +141,15 @@ impl State {
                 if self.invest_level >= MAX_INVEST_LEVEL || t >= self.invest_limit() {
                     return -INF;
                 }
-                if self.score >= p && p / 2_i64.pow(self.invest_level as u32) < self.invest_cost() {
+                if (self.score >= p * 2
+                    && p / 2_i64.pow(self.invest_level as u32) < self.invest_cost())
+                    || self
+                        .cards
+                        .iter()
+                        .filter(|&&card| card == Card::Invest)
+                        .count()
+                        == self.cards.len() - 1
+                {
                     INF
                 } else {
                     -INF
