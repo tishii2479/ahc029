@@ -41,6 +41,10 @@ impl State {
         if p > self.score {
             return (-INF, 0);
         }
+
+        const OVER_FLOW_ALPHA: f64 = 0.5;
+        const CANCEL_ALPHA: f64 = 1.1;
+
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
@@ -57,7 +61,9 @@ impl State {
                 if self.projects[m].h > w + self.remain_w(t, p) && p > 0 {
                     return (-INF, m);
                 }
-                let eval = *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64);
+                let eval = *w as f64
+                    - p as f64
+                    - ((w - self.projects[m].h).max(0) as f64) * OVER_FLOW_ALPHA;
                 (eval, m)
             }
             Card::WorkAll(w) => {
@@ -80,8 +86,8 @@ impl State {
                     - (self
                         .projects
                         .iter()
-                        .map(|proj| (w - proj.h).max(0))
-                        .sum::<i64>() as f64);
+                        .map(|proj| (*w as f64 - proj.h as f64).max(0.) * OVER_FLOW_ALPHA)
+                        .sum::<f64>());
                 (eval, 0)
             }
             Card::CancelSingle => {
@@ -96,7 +102,8 @@ impl State {
                 if t >= self.cancel_limit() {
                     return (-INF, m);
                 }
-                let eval = self.projects[m].h as f64 * 1.1 - self.projects[m].v as f64 - p as f64;
+                let eval =
+                    self.projects[m].h as f64 * CANCEL_ALPHA - self.projects[m].v as f64 - p as f64;
                 (eval, m)
             }
             Card::CancelAll => {
@@ -106,7 +113,7 @@ impl State {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| proj.h as f64 * 1.1 - proj.v as f64)
+                    .map(|proj| proj.h as f64 * CANCEL_ALPHA - proj.v as f64)
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
