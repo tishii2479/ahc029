@@ -32,8 +32,6 @@ fn refill_card(
     state.cards[i] = new_cards[selected_card].0;
 }
 
-const CANCEL_LIMIT: usize = 980;
-
 impl State {
     fn is_feasible(&self, project: &Project, p: i64, w: i64, t: usize) -> bool {
         project.h
@@ -82,14 +80,14 @@ impl State {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| self.projects[i].h - self.projects[i].v)
                     .unwrap();
-                if t >= CANCEL_LIMIT {
+                if t >= self.cancel_limit() {
                     return (-INF, 0);
                 }
                 let eval = (&self.projects[m].h - self.projects[m].v - p) as f64;
                 (eval, m)
             }
             Card::CancelAll => {
-                if t >= CANCEL_LIMIT {
+                if t >= self.cancel_limit() {
                     return (-INF, 0);
                 }
                 let eval = self
@@ -110,8 +108,7 @@ impl State {
                         .iter()
                         .filter(|&&card| card == Card::Invest)
                         .count()
-                    || ((t >= self.should_invest_limit() || self.last_invest_round + 1 == t)
-                        && p == 0)
+                    || ((t >= self.invest_limit() || self.last_invest_round + 1 == t) && p == 0)
                 {
                     return (INF, 0);
                 }
@@ -128,7 +125,7 @@ impl State {
 
         match card {
             Card::Invest => {
-                if self.invest_level >= MAX_INVEST_LEVEL || t >= self.should_invest_limit() {
+                if self.invest_level >= MAX_INVEST_LEVEL || t >= self.invest_limit() {
                     return -INF;
                 }
                 if self.score >= p && p / 2_i64.pow(self.invest_level as u32) < 600 {
@@ -181,7 +178,7 @@ impl State {
         (card_idx[0], evals[card_idx[0]].1)
     }
 
-    fn should_invest_limit(&self) -> usize {
+    fn invest_limit(&self) -> usize {
         850
         // let invest_count = self.invest_level
         //     + self
@@ -191,6 +188,10 @@ impl State {
         //         .count();
         // let mean_round = self.last_invest_round / invest_count.max(1);
         // 1000 - mean_round * 3
+    }
+
+    fn cancel_limit(&self) -> usize {
+        980
     }
 
     fn empty_card_index(&self) -> Option<usize> {
