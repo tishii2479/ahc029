@@ -34,19 +34,6 @@ fn refill_card(
 
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
-        fn eval_work(project: &Project, w: i64, t: usize, invest_level: usize) -> f64 {
-            // if project.h > (1000 - t as i64) * 2_i64.pow(invest_level as u32) {
-            //     return 0.;
-            // }
-            (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
-                - ((w - project.h).max(0) as f64).powf(0.8)
-        }
-
-        fn eval_cancel(project: &Project) -> f64 {
-            // TODO: hの大きさも考慮する
-            project.h as f64 - project.v as f64
-        }
-
         if p > self.score {
             return (-INF, 0);
         }
@@ -54,7 +41,16 @@ impl State {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| {
-                        (eval_work(&self.projects[i], *w, t, self.invest_level) * 10000.) as i64
+                        if self.projects[i].h
+                            > w + (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
+                                + self.score * 2 / 10
+                        {
+                            return 0;
+                        }
+                        (((*w as f64 / self.projects[i].h as f64).min(1.).powf(2.)
+                            * self.projects[i].v as f64
+                            - ((w - self.projects[i].h).max(0) as f64).powf(0.8))
+                            * 10000.) as i64
                     })
                     .unwrap();
                 let eval =
@@ -62,33 +58,38 @@ impl State {
                 (eval, m)
             }
             Card::WorkAll(w) => {
-                // let eval = self
-                //     .projects
-                //     .iter()
-                //     .map(|proj| eval_work(&proj, *w, t, self.invest_level))
-                //     .sum::<f64>()
-                //     - p as f64;
-                let w_sum = *w as f64 * self.projects.len() as f64;
+                let feasible_projects: Vec<Project> = self
+                    .projects
+                    .iter()
+                    .copied()
+                    .filter(|&proj| {
+                        proj.h
+                            <= *w
+                                + (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
+                                + self.score * 2 / 10
+                    })
+                    .collect();
+                let w_sum = *w as f64 * feasible_projects.len() as f64;
                 let eval = w_sum
                     - p as f64
-                    - (w_sum - self.projects.iter().map(|&proj| proj.h).sum::<i64>() as f64)
+                    - (w_sum - feasible_projects.iter().map(|proj| proj.h).sum::<i64>() as f64)
                         .max(0.)
                         .powf(0.8);
                 (eval, 0)
             }
             Card::CancelSingle => {
                 let m = (0..self.projects.len())
-                    .max_by_key(|&i| (eval_cancel(&self.projects[i]) * 10000.) as i64)
+                    .max_by_key(|&i| self.projects[i].h - self.projects[i].v)
                     .unwrap();
-                let eval = eval_cancel(&self.projects[m]) - p as f64;
+                let eval = (&self.projects[m].h - self.projects[m].v - p) as f64;
                 (eval, m)
             }
             Card::CancelAll => {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| eval_cancel(proj))
-                    .sum::<f64>()
+                    .map(|proj| proj.h - proj.v)
+                    .sum::<i64>() as f64
                     - p as f64;
                 (eval, 0)
             }
