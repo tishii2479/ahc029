@@ -123,6 +123,48 @@ impl State {
         }
     }
 
+    fn select_new_card(&self, new_cards: &Vec<(Card, i64)>, t: usize) -> usize {
+        println!("# eval_refill, m, card_type, p");
+        let eval_refills: Vec<f64> = new_cards
+            .iter()
+            .map(|(card, p)| {
+                if *p <= self.score {
+                    self.eval(&card, *p, t).0
+                } else {
+                    -INF
+                }
+            })
+            .collect();
+        let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
+        card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
+        for &i in card_idx.iter() {
+            println!(
+                "# {} {:.3} {:?}, {}",
+                i, eval_refills[i], new_cards[i].0, new_cards[i].1
+            );
+        }
+
+        card_idx[0]
+    }
+
+    fn select_use_card(&self, t: usize) -> (usize, usize) {
+        println!("# eval, m, card_type, p");
+        let evals: Vec<(f64, usize)> = self
+            .cards
+            .iter()
+            .map(|card| self.eval(&card, 0, t))
+            .collect();
+        let mut card_idx = (0..self.cards.len()).collect::<Vec<usize>>();
+        card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
+        for &i in card_idx.iter() {
+            println!(
+                "# {} {:.3} {} {:?}",
+                i, evals[i].0, evals[i].1, self.cards[i]
+            );
+        }
+        (card_idx[0], evals[card_idx[0]].1)
+    }
+
     fn should_invest(&self, t: usize) -> bool {
         let mean_round = self.last_invest_round as f64 / self.invest_level.max(1) as f64;
         let remain_round = (1000 - t) as f64;
@@ -138,123 +180,23 @@ impl State {
         None
     }
 }
-
-fn select_best_card(
-    state: &mut State,
-    new_cards: &Vec<(Card, i64)>,
-    t: usize,
-) -> (usize, usize, Option<usize>) {
-    let mut cards: Vec<(Card, i64)> = state.cards.iter().copied().map(|card| (card, 0)).collect();
-    cards.extend(new_cards);
-    let evals = cards
-        .iter()
-        .enumerate()
-        .map(|(i, (card, p))| {
-            let (eval, m) = state.eval(card, *p, t);
-            (eval, m, std::cmp::Reverse(i))
-        })
-        .collect::<Vec<(f64, usize, std::cmp::Reverse<usize>)>>();
-    let mut selected_card = (0..cards.len())
-        .max_by(|i, j| evals[*i].partial_cmp(&evals[*j]).unwrap())
-        .unwrap();
-
-    {
-        println!("# eval, m, card_type, p");
-        let mut card_idx = (0..cards.len()).collect::<Vec<usize>>();
-        card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
-        for i in card_idx {
-            println!(
-                "# {} {:.3}, {}, {:?}, {}",
-                i, evals[i].0, evals[i].1, cards[i].0, cards[i].1
-            );
-        }
-    }
-
-    let (selected_m, refill_card) = if new_cards.len() == 0 {
-        (evals[selected_card].1, None)
-    } else if selected_card < state.cards.len() {
-        let eval_refills = new_cards
-            .iter()
-            .map(|(card, p)| state.eval_refill(card, *p, t))
-            .collect::<Vec<f64>>();
-        {
-            println!("# eval_refill, m, card_type, p");
-            let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
-            card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
-            for i in card_idx {
-                println!(
-                    "# {} {:.3}, {:?}, {}",
-                    i, eval_refills[i], cards[i].0, cards[i].1
-                );
-            }
-        }
-        (
-            evals[selected_card].1,
-            (0..new_cards.len())
-                .max_by(|i, j| eval_refills[*i].partial_cmp(&eval_refills[*j]).unwrap()),
-        )
-    } else {
-        let m = evals[selected_card].1;
-        let i = selected_card - state.cards.len();
-        selected_card = state.empty_card_index().unwrap();
-        (m, Some(i))
-    };
-
-    (selected_card, selected_m, refill_card)
-}
-
 fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     let mut scores = vec![0];
     let mut invest_rounds = vec![];
 
     // 最初のカードを出す
-    let (select_card, m, _) = select_best_card(state, &vec![], 0);
+    let (select_card, m) = state.select_use_card(0);
     use_card(select_card, m, state, interactor);
 
     for t in 1..input.t {
         let new_cards = read_status(state, input, interactor);
 
         // 新しいカードを見て、補充するカードを決める
-        println!("# eval_refill, m, card_type, p");
-        let eval_refills: Vec<f64> = new_cards
-            .iter()
-            .map(|(card, p)| {
-                if *p <= state.score {
-                    state.eval(&card, *p, t).0
-                } else {
-                    -INF
-                }
-            })
-            .collect();
-        let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
-        card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
-        for &i in card_idx.iter() {
-            println!(
-                "# {} {:.3} {:?}, {}",
-                i, eval_refills[i], new_cards[i].0, new_cards[i].1
-            );
-        }
-
-        let new_selected_card = card_idx[0];
+        let new_selected_card = state.select_new_card(&new_cards, t);
         refill_card(new_selected_card, &new_cards, state, interactor);
 
         // 今持っているカードを見て、使うカードを決める
-        println!("# eval, m, card_type, p");
-        let evals: Vec<(f64, usize)> = state
-            .cards
-            .iter()
-            .map(|card| state.eval(&card, 0, t))
-            .collect();
-        let mut card_idx = (0..state.cards.len()).collect::<Vec<usize>>();
-        card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
-        for &i in card_idx.iter() {
-            println!(
-                "# {} {:.3} {} {:?}",
-                i, evals[i].0, evals[i].1, state.cards[i]
-            );
-        }
-        let select_card = card_idx[0];
-        let m = evals[select_card].1;
+        let (select_card, m) = state.select_use_card(t);
 
         if state.cards[select_card] == Card::Invest {
             state.last_invest_round = t;
