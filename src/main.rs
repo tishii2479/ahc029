@@ -107,7 +107,6 @@ impl State {
                     .projects
                     .iter()
                     .map(|proj| proj.h as f64 * 1.1 - proj.v as f64)
-                    // .take(self.projects.len().min(3))
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
@@ -205,7 +204,7 @@ impl State {
     }
 
     fn invest_limit(&self) -> usize {
-        850
+        900
         // TODO: 増資状況に合わせた方が良い
         // TODO: モンテカルロで最適なターンを求めた方が良い
         // let invest_count = self.invest_level
@@ -215,7 +214,7 @@ impl State {
         //         .filter(|&&card| Card::Invest == card)
         //         .count();
         // let mean_round = self.last_invest_round / invest_count.max(1);
-        // 1000 - mean_round * 3
+        // 1000 - mean_round.max(100)
     }
 
     fn cancel_limit(&self) -> usize {
@@ -242,7 +241,6 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
 
         if state.cards[select_card] == Card::Invest {
             state.last_invest_round = t;
-            invest_rounds.push(t);
         }
         use_card(select_card, m, state, interactor);
         scores.push(state.score);
@@ -255,6 +253,9 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
         } else {
             0
         };
+        if new_cards[new_card].0 == Card::Invest {
+            invest_rounds.push(t);
+        }
         refill_card(new_card, &new_cards, state, interactor);
     }
 
