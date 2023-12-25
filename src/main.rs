@@ -15,8 +15,11 @@ fn read_status(state: &mut State, input: &Input, interactor: &mut Interactor) ->
 
 fn use_card(use_card: usize, m: usize, state: &mut State, interactor: &mut Interactor) {
     interactor.output_c(use_card, m);
-    if let Card::Invest = state.cards[use_card] {
-        state.invest_level += 1;
+    match state.cards[use_card] {
+        Card::Invest => {
+            state.invest_level += 1;
+        }
+        _ => {}
     }
     state.cards[use_card] = Card::None;
 }
@@ -33,9 +36,14 @@ fn refill_card(
 }
 
 impl State {
-    fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
-        fn eval_work(project: &Project, w: i64, alpha: f64, gamma: f64) -> f64 {
-            (w as f64 / project.h as f64).min(1.).powf(alpha) * project.v as f64
+    fn eval(&self, card: &Card, t: usize) -> (f64, usize) {
+        fn eval_work(project: &Project, w: i64, gamma: f64) -> f64 {
+            // project.v as f64
+            //     * ((project._h - project.h + w).min(project._h).pow(2)
+            //         - (project._h - project.h).pow(2)) as f64
+            //     / project._h.pow(2) as f64
+            //     - ((w - project.h).max(0) as f64).powf(gamma)
+            (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
                 - ((w - project.h).max(0) as f64).powf(gamma)
         }
 
@@ -44,32 +52,27 @@ impl State {
             project.h as f64 - project.v as f64
         }
 
-        if p > self.score {
-            return (-INF, 0);
-        }
         match card {
             Card::WorkSingle(w) => {
                 let m = (0..self.projects.len())
-                    .max_by_key(|&i| (eval_work(&self.projects[i], *w, 2., 0.8) * 10000.) as i64)
+                    .max_by_key(|&i| (eval_work(&self.projects[i], *w, 0.8) * 10000.) as i64)
                     .unwrap();
-                let eval =
-                    *w as f64 - p as f64 - ((w - self.projects[m].h).max(0) as f64).powf(0.8);
+                let eval = eval_work(&self.projects[m], *w, 0.8);
                 (eval, m)
             }
             Card::WorkAll(w) => {
                 let eval = self
                     .projects
                     .iter()
-                    .map(|proj| eval_work(&proj, *w, 2., 0.5))
-                    .sum::<f64>()
-                    - p as f64;
+                    .map(|proj| eval_work(&proj, *w, 0.8))
+                    .sum::<f64>();
                 (eval, 0)
             }
             Card::CancelSingle => {
                 let m = (0..self.projects.len())
                     .max_by_key(|&i| (eval_cancel(&self.projects[i]) * 10000.) as i64)
                     .unwrap();
-                let eval = eval_cancel(&self.projects[m]) - p as f64;
+                let eval = eval_cancel(&self.projects[m]);
                 (eval, m)
             }
             Card::CancelAll => {
@@ -77,16 +80,14 @@ impl State {
                     .projects
                     .iter()
                     .map(|proj| eval_cancel(proj))
-                    .sum::<f64>()
-                    - p as f64;
+                    .sum::<f64>();
                 (eval, 0)
             }
             Card::Invest => {
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
                     return (-INF, 0);
                 }
-                let eval = if self.score >= p { INF } else { -INF };
-                (eval, 0)
+                (INF, 0)
             }
             Card::None => (-INF, 0),
         }
@@ -105,8 +106,8 @@ impl State {
         .clamp(0., 1.);
 
         match card {
-            Card::WorkSingle(w) => *w as f64 * b - p as f64,
-            Card::WorkAll(w) => *w as f64 * self.projects.len() as f64 * b - p as f64,
+            Card::WorkSingle(w) => *w as f64 * b * 0.8 - p as f64,
+            Card::WorkAll(w) => *w as f64 * self.projects.len() as f64 * b * 0.8 - p as f64,
             Card::CancelSingle => (2_f64).powf(self.invest_level as f64) - p as f64,
             Card::CancelAll => -INF,
             Card::Invest => {
@@ -148,7 +149,7 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
         .cards
         .iter()
         .enumerate()
-        .map(|(i, card)| (state.eval(card, 0, 0), i))
+        .map(|(i, card)| (state.eval(card, 0), i))
         .max_by(|a, b| a.partial_cmp(b).unwrap())
         .unwrap();
     use_card(select_card, m, state, interactor);
@@ -160,7 +161,13 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
         println!("# eval_refill, m, card_type, p");
         let eval_refills: Vec<f64> = new_cards
             .iter()
-            .map(|card| state.eval(&card.0, card.1, t).0)
+            .map(|(card, p)| {
+                if *p <= state.score {
+                    state.eval_refill(&card, *p, t)
+                } else {
+                    -INF
+                }
+            })
             .collect();
         let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
@@ -179,7 +186,7 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
         let evals: Vec<(f64, usize)> = state
             .cards
             .iter()
-            .map(|card| state.eval(&card, 0, t))
+            .map(|card| state.eval(&card, t))
             .collect();
         let mut card_idx = (0..state.cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
