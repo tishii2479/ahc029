@@ -127,13 +127,7 @@ impl State {
         println!("# eval_refill, m, card_type, p");
         let eval_refills: Vec<f64> = new_cards
             .iter()
-            .map(|(card, p)| {
-                if *p <= self.score {
-                    self.eval(&card, *p, t).0
-                } else {
-                    -INF
-                }
-            })
+            .map(|(card, p)| self.eval(&card, *p, t).0)
             .collect();
         let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
@@ -184,17 +178,7 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
     let mut scores = vec![0];
     let mut invest_rounds = vec![];
 
-    // 最初のカードを出す
-    let (select_card, m) = state.select_use_card(0);
-    use_card(select_card, m, state, interactor);
-
-    for t in 1..input.t {
-        let new_cards = read_status(state, input, interactor);
-
-        // 新しいカードを見て、補充するカードを決める
-        let new_selected_card = state.select_new_card(&new_cards, t);
-        refill_card(new_selected_card, &new_cards, state, interactor);
-
+    for t in 0..input.t {
         // 今持っているカードを見て、使うカードを決める
         let (select_card, m) = state.select_use_card(t);
 
@@ -205,11 +189,17 @@ fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
 
         use_card(select_card, m, state, interactor);
         scores.push(state.score);
-    }
 
-    // 最後にカードを補充する
-    let new_cards = read_status(state, input, interactor);
-    refill_card(0, &new_cards, state, interactor);
+        let new_cards = read_status(state, input, interactor);
+
+        // 新しいカードを見て、補充するカードを決める
+        let new_selected_card = if t < input.t - 1 {
+            state.select_new_card(&new_cards, t)
+        } else {
+            0
+        };
+        refill_card(new_selected_card, &new_cards, state, interactor);
+    }
 
     // ビジュアライズ用
     if cfg!(feature = "local") {
