@@ -66,12 +66,11 @@ impl State {
                 let mut projects = self.projects.clone();
                 projects.sort_by_key(|p| p.h);
                 let mut ok_proj = 0;
-                let mut remain_w = w
-                    + (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
+                let mut remain_w = (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
                     + (self.score - p) * 2 / 10;
                 for p in projects {
-                    if p.h <= remain_w {
-                        remain_w -= p.h;
+                    if p.h - w <= remain_w {
+                        remain_w -= p.h - w;
                         ok_proj += 1;
                     }
                 }

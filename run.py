@@ -163,15 +163,10 @@ class Runner:
         database_df = pd.merge(database_df, best_scores, on="input_file", how="left")
         database_df["relative_score"] = database_df["score"] / database_df["best_score"]
         self.logger.info(
-            database_df.groupby("solver_version")
-            .relative_score.mean()
-            .sort_values(ascending=False)[:30]
+            database_df.groupby("solver_version")[["relative_score", "score"]]
+            .mean()
+            .sort_values(by="relative_score", ascending=False)[:30]
         )
-        # self.logger.info(
-        #     database_df.groupby("solver_version")["score"]
-        #     .agg("mean")
-        #     .sort_values(ascending=False)[:50]
-        # )
 
     def add_log_to_database(self, df: pd.DataFrame) -> None:
         try:

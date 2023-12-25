@@ -1,0 +1,1 @@
+diff log/backup/$1.rs log/backup/$2.rs
