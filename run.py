@@ -157,11 +157,21 @@ class Runner:
 
     def list_solvers(self) -> None:
         database_df = pd.read_csv(self.database_csv)
-        self.logger.info(
-            database_df.groupby("solver_version")["score"]
-            .agg("mean")
-            .sort_values(ascending=False)[:50]
+        best_scores = (
+            database_df.groupby("input_file")["score"].max().rename("best_score")
         )
+        database_df = pd.merge(database_df, best_scores, on="input_file", how="left")
+        database_df["relative_score"] = database_df["score"] / database_df["best_score"]
+        self.logger.info(
+            database_df.groupby("solver_version")
+            .relative_score.mean()
+            .sort_values(ascending=False)[:30]
+        )
+        # self.logger.info(
+        #     database_df.groupby("solver_version")["score"]
+        #     .agg("mean")
+        #     .sort_values(ascending=False)[:50]
+        # )
 
     def add_log_to_database(self, df: pd.DataFrame) -> None:
         try:
