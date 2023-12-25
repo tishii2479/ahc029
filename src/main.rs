@@ -35,9 +35,9 @@ fn refill_card(
 impl State {
     fn eval(&self, card: &Card, p: i64, t: usize) -> (f64, usize) {
         fn eval_work(project: &Project, w: i64, t: usize, invest_level: usize) -> f64 {
-            if project.h > (1000 - t as i64) * 2_i64.pow(invest_level as u32) {
-                return 0.;
-            }
+            // if project.h > (1000 - t as i64) * 2_i64.pow(invest_level as u32) {
+            //     return 0.;
+            // }
             (w as f64 / project.h as f64).min(1.).powf(2.) * project.v as f64
                 - ((w - project.h).max(0) as f64).powf(0.8)
         }
