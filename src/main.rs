@@ -106,8 +106,8 @@ impl State {
 
         match card {
             Card::WorkSingle(w) => *w as f64 * b - p as f64,
-            Card::WorkAll(w) => *w as f64 * self.projects.len() as f64 * b - p as f64,
-            Card::CancelSingle => (2_f64).powf(self.invest_level as f64) - p as f64,
+            Card::WorkAll(_) => -INF,
+            Card::CancelSingle => -INF,
             Card::CancelAll => -INF,
             Card::Invest => {
                 if self.invest_level >= MAX_INVEST_LEVEL || !self.should_invest(t) {
@@ -150,15 +150,12 @@ fn select_best_card(
         .iter()
         .enumerate()
         .map(|(i, (card, p))| {
-            let (mut eval, m) = state.eval(card, *p, t);
-            if i > state.cards.len() {
-                eval -= 1e-10;
-            }
-            (eval, m)
+            let (eval, m) = state.eval(card, *p, t);
+            (eval, m, std::cmp::Reverse(i))
         })
-        .collect::<Vec<(f64, usize)>>();
+        .collect::<Vec<(f64, usize, std::cmp::Reverse<usize>)>>();
     let mut selected_card = (0..cards.len())
-        .max_by(|i, j| evals[*i].0.partial_cmp(&evals[*j].0).unwrap())
+        .max_by(|i, j| evals[*i].partial_cmp(&evals[*j]).unwrap())
         .unwrap();
 
     {
