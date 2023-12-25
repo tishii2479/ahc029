@@ -63,16 +63,26 @@ impl State {
                 (eval, m)
             }
             Card::WorkAll(w) => {
-                let feasible_projects: Vec<Project> = self
-                    .projects
-                    .iter()
-                    .copied()
-                    .filter(|proj| self.is_feasible(proj, p, *w, t))
-                    .collect();
-                let w_sum = *w as f64 * feasible_projects.len() as f64;
+                let mut projects = self.projects.clone();
+                projects.sort_by_key(|p| p.h);
+                let mut ok_proj = 0;
+                let mut remain_w = w
+                    + (999 - t as i64) * 2_i64.pow(self.invest_level as u32)
+                    + (self.score - p) * 2 / 10;
+                for p in projects {
+                    if p.h <= remain_w {
+                        remain_w -= p.h;
+                        ok_proj += 1;
+                    }
+                }
+                let w_sum = (*w * ok_proj) as f64;
                 let eval = w_sum
                     - p as f64
-                    - (w_sum - feasible_projects.iter().map(|proj| proj.h).sum::<i64>() as f64)
+                    - (self
+                        .projects
+                        .iter()
+                        .map(|proj| (w - proj.h).max(0))
+                        .sum::<i64>() as f64)
                         .max(0.);
                 (eval, 0)
             }
@@ -81,7 +91,7 @@ impl State {
                     .max_by_key(|&i| self.projects[i].h - self.projects[i].v)
                     .unwrap();
                 if t >= self.cancel_limit() {
-                    return (-INF, 0);
+                    return (-INF, m);
                 }
                 let eval = (&self.projects[m].h - self.projects[m].v - p) as f64;
                 (eval, m)
@@ -180,6 +190,8 @@ impl State {
 
     fn invest_limit(&self) -> usize {
         850
+        // TODO: 増資状況に合わせた方が良い
+        // TODO: モンテカルロで最適な点を求めた方が良い
         // let invest_count = self.invest_level
         //     + self
         //         .cards
