@@ -1,6 +1,8 @@
 pub const MAX_INVEST_LEVEL: usize = 20;
 pub const INF: f64 = 1e18;
 
+use crate::interactor::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Card {
     WorkSingle(i64),
@@ -56,6 +58,47 @@ pub struct State {
     pub score: i64,
     pub cards: Vec<Card>,
     pub projects: Vec<Project>,
+}
+
+impl State {
+    pub fn read_status<I: Interactor>(
+        &mut self,
+        input: &Input,
+        interactor: &mut I,
+    ) -> Vec<(Card, i64)> {
+        let (projects, score, new_cards) = interactor.read_status(input);
+        self.projects = projects;
+        self.score = score;
+        new_cards
+    }
+
+    pub fn use_card<I: Interactor>(&mut self, use_card: usize, m: usize, interactor: &mut I) {
+        interactor.output_c(use_card, m);
+        if let Card::Invest = self.cards[use_card] {
+            self.invest_level += 1;
+        }
+        self.cards[use_card] = Card::None;
+    }
+
+    pub fn refill_card<I: Interactor>(
+        &mut self,
+        selected_card: usize,
+        new_cards: &Vec<(Card, i64)>,
+        interactor: &mut I,
+    ) {
+        interactor.output_r(selected_card);
+        let i = self.empty_card_index().unwrap();
+        self.cards[i] = new_cards[selected_card].0;
+    }
+
+    pub fn empty_card_index(&self) -> Option<usize> {
+        for i in 0..self.cards.len() {
+            if let Card::None = self.cards[i] {
+                return Some(i);
+            }
+        }
+        None
+    }
 }
 
 pub struct Recorder {

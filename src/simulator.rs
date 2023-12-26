@@ -2,7 +2,7 @@ use rand::{prelude::*, Rng};
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_distr::{Normal, WeightedIndex};
 
-use crate::{def::*, interactor::Interactor, util::rnd};
+use crate::{def::*, interactor::Interactor, solver::*, util::rnd};
 
 fn generate_project(rng: &mut ChaCha20Rng) -> Project {
     let b = rng.gen_range(2.0f64..=8.0);
@@ -148,6 +148,7 @@ impl Interactor for MockInteractor {
         self.cards[self.used_card] = self.candidate_cards[r].0;
     }
 
+    #[allow(unused)]
     fn read_status(
         &mut self,
         input: &Input,
@@ -159,4 +160,60 @@ impl Interactor for MockInteractor {
             self.candidate_cards.clone(),
         )
     }
+}
+
+fn montecarlo(
+    rounds: usize,
+    cur_state: &State,
+    input: &Input,
+    cur_t: usize,
+    x: &Vec<i64>,
+    refill_first: bool,
+    new_select_card: usize,
+    new_cards: &Vec<(Card, i64)>,
+) -> i64 {
+    let mut score_sum = 0;
+
+    for _ in 0..rounds {
+        let mut solver = Solver {
+            state: cur_state.clone(),
+        };
+        let mut mock_interactor = MockInteractor::new(
+            x,
+            cur_t,
+            &solver.state,
+            solver.state.empty_card_index().unwrap_or(0),
+            new_cards.clone(),
+        );
+
+        // 最初のrefillを固定する場合
+        if refill_first {
+            solver
+                .state
+                .refill_card(new_select_card, new_cards, &mut mock_interactor);
+        }
+
+        for t in cur_t..input.t {
+            // 今持っているカードを見て、使うカードを決める
+            let (select_card, m) = solver.select_use_card(t);
+
+            if solver.state.cards[select_card] == Card::Invest {
+                solver.state.last_invest_round = t;
+            }
+            solver.state.use_card(select_card, m, &mut mock_interactor);
+            let new_cards = solver.state.read_status(input, &mut mock_interactor);
+
+            // 新しいカードを見て、補充するカードを決める
+            let new_card = if t < input.t - 1 {
+                solver.select_new_card(&new_cards, t)
+            } else {
+                0
+            };
+            solver
+                .state
+                .refill_card(new_card, &new_cards, &mut mock_interactor);
+        }
+        score_sum += solver.state.score;
+    }
+    score_sum / rounds as i64
 }
