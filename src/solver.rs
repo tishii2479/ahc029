@@ -31,13 +31,9 @@ impl Solver {
             }
 
             // 新しいカードを見て、補充するカードを決める
-            const MONTE_CARLO_ROUND: usize = 50;
-            let new_card = if t < 980 {
-                if t < input.t - 1 {
-                    self.select_new_card(&new_cards, t)
-                } else {
-                    0
-                }
+            const MONTE_CARLO_ROUND: usize = 30;
+            let new_card = if t < 990 {
+                self.select_new_card(&new_cards, t)
             } else {
                 (0..new_cards.len())
                     .max_by_key(|&i| {
@@ -59,6 +55,7 @@ impl Solver {
                     })
                     .unwrap()
             };
+            // モンテカルロしない場合
             // let new_card = if t < input.t - 1 {
             //     self.select_new_card(&new_cards, t)
             // } else {

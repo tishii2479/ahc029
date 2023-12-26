@@ -296,7 +296,7 @@ if __name__ == "__main__":
         )
         cases = [
             (f"{args.data_dir}/in/{seed:04}.txt", f"{args.data_dir}/out/{seed:04}.txt")
-            for seed in range(1000, 1000 + args.case_num)
+            for seed in range(args.case_num)
         ]
         runner.run(cases=cases, ignore=args.ignore, verbose=args.verbose)
         runner.evaluate_relative_score(
