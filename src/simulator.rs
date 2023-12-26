@@ -56,7 +56,13 @@ pub struct MockInteractor {
 }
 
 impl MockInteractor {
-    pub fn new(x: &Vec<i64>, t: usize, state: &State) -> MockInteractor {
+    pub fn new(
+        x: &Vec<i64>,
+        t: usize,
+        state: &State,
+        used_card: usize,
+        candidate_cards: Vec<(Card, i64)>,
+    ) -> MockInteractor {
         let mut rng = ChaCha20Rng::seed_from_u64(rnd::gen_range(0, 10000000000) as u64);
         let mut new_projects = vec![];
         for _ in 0..state.projects.len() * (1005 - t) {
@@ -77,8 +83,8 @@ impl MockInteractor {
             invest_level: state.invest_level,
             cards: state.cards.clone(),
             projects: state.projects.clone(),
-            used_card: 0,
-            candidate_cards: vec![],
+            used_card,
+            candidate_cards,
             new_projects,
             new_cards,
         }

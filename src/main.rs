@@ -43,7 +43,7 @@ impl State {
         (999 - t as i64) * 2_i64.pow(self.invest_level as u32) + (self.score - p)
     }
 
-    fn eval(&self, card: &Card, p: i64, t: usize, refill: bool) -> (f64, usize) {
+    fn eval(&self, card: &Card, p: i64, t: usize, refill: bool, montecarlo: bool) -> (f64, usize) {
         if p > self.score {
             return (-INF, 0);
         }
@@ -168,7 +168,7 @@ impl State {
                     -INF
                 }
             }
-            _ => self.eval(card, p, t, true).0,
+            _ => self.eval(card, p, t, true, false).0,
         }
     }
 
@@ -195,7 +195,7 @@ impl State {
         let evals: Vec<(f64, usize)> = self
             .cards
             .iter()
-            .map(|card| self.eval(&card, 0, t, false))
+            .map(|card| self.eval(&card, 0, t, false, true))
             .collect();
 
         let mut card_idx = (0..self.cards.len()).collect::<Vec<usize>>();
@@ -243,80 +243,99 @@ impl State {
     }
 }
 
-fn montecarlo(rounds: usize, cur_state: &State, input: &Input, cur_t: usize, x: &Vec<i64>) -> i64 {
+fn montecarlo(
+    rounds: usize,
+    cur_state: &State,
+    input: &Input,
+    cur_t: usize,
+    x: &Vec<i64>,
+    refill_first: bool,
+    new_select_card: usize,
+    new_cards: &Vec<(Card, i64)>,
+) -> i64 {
     let mut score_sum = 0;
 
     for _ in 0..rounds {
         let mut state = cur_state.clone();
-        let mut mock_interactor = MockInteractor::new(x, cur_t, &state);
-        let mut recorder: Recorder = Recorder::new();
-        for t in cur_t..input.t {
-            run_one_round(t, &mut state, input, &mut mock_interactor, &mut recorder);
+        let mut mock_interactor = MockInteractor::new(
+            x,
+            cur_t,
+            &state,
+            state.empty_card_index().unwrap_or(0),
+            new_cards.clone(),
+        );
+
+        // 最初のrefillを固定する場合
+        if refill_first {
+            refill_card(new_select_card, new_cards, &mut state, &mut mock_interactor);
         }
-        eprintln!("{}", state.score);
+
+        for t in cur_t..input.t {
+            // 今持っているカードを見て、使うカードを決める
+            let (select_card, m) = state.select_use_card(t);
+
+            if state.cards[select_card] == Card::Invest {
+                state.last_invest_round = t;
+            }
+            use_card(select_card, m, &mut state, &mut mock_interactor);
+            let new_cards = read_status(&mut state, input, &mut mock_interactor);
+
+            // 新しいカードを見て、補充するカードを決める
+            let new_card = if t < input.t - 1 {
+                state.select_new_card(&new_cards, t)
+            } else {
+                0
+            };
+            refill_card(new_card, &new_cards, &mut state, &mut mock_interactor);
+        }
         score_sum += state.score;
     }
     score_sum / rounds as i64
-}
-
-fn run_one_round<I: Interactor>(
-    t: usize,
-    state: &mut State,
-    input: &Input,
-    interactor: &mut I,
-    recorder: &mut Recorder,
-) {
-    // 今持っているカードを見て、使うカードを決める
-    let (select_card, m) = state.select_use_card(t);
-
-    if state.cards[select_card] == Card::Invest {
-        state.last_invest_round = t;
-    }
-    use_card(select_card, m, state, interactor);
-    recorder.scores.push(state.score);
-
-    let new_cards = read_status(state, input, interactor);
-    for (card, _) in new_cards.iter() {
-        recorder.x[card.to_t()] += 1;
-    }
-
-    // 新しいカードを見て、補充するカードを決める
-    let new_card = if t < input.t - 1 {
-        state.select_new_card(&new_cards, t)
-    } else {
-        0
-    };
-    if new_cards[new_card].0 == Card::Invest {
-        recorder.invest_rounds.push(t);
-    }
-    refill_card(new_card, &new_cards, state, interactor);
-}
-
-struct Recorder {
-    scores: Vec<i64>,
-    invest_rounds: Vec<usize>,
-    x: Vec<i64>,
-}
-
-impl Recorder {
-    fn new() -> Recorder {
-        Recorder {
-            scores: vec![0],
-            invest_rounds: vec![],
-            x: vec![0; 5],
-        }
-    }
 }
 
 fn solve(state: &mut State, input: &Input, interactor: &mut IOInteractor) {
     let mut recorder = Recorder::new();
 
     for t in 0..input.t {
-        run_one_round(t, state, input, interactor, &mut recorder);
+        // 今持っているカードを見て、使うカードを決める
+        let (select_card, m) = state.select_use_card(t);
 
-        if t == 900 {
-            montecarlo(3, state, input, t, &recorder.x);
+        if state.cards[select_card] == Card::Invest {
+            state.last_invest_round = t;
         }
+        use_card(select_card, m, state, interactor);
+        recorder.scores.push(state.score);
+
+        let new_cards = read_status(state, input, interactor);
+        for (card, _) in new_cards.iter() {
+            recorder.x[card.to_t()] += 1;
+        }
+
+        // 新しいカードを見て、補充するカードを決める
+        let new_card = if t < 980 {
+            if t < input.t - 1 {
+                state.select_new_card(&new_cards, t)
+            } else {
+                0
+            }
+        } else {
+            (0..new_cards.len())
+                .max_by_key(|&i| {
+                    if new_cards[i].0 == Card::Invest && state.invest_level == 20 {
+                        return 0;
+                    }
+                    if new_cards[i].1 <= state.score {
+                        montecarlo(100, &state, input, t, &recorder.x, true, i, &new_cards)
+                    } else {
+                        0
+                    }
+                })
+                .unwrap()
+        };
+        if new_cards[new_card].0 == Card::Invest {
+            recorder.invest_rounds.push(t);
+        }
+        refill_card(new_card, &new_cards, state, interactor);
     }
 
     // ビジュアライズ用

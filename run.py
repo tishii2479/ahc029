@@ -87,7 +87,7 @@ class Runner:
         self,
         columns: Optional[List[str]] = None,
         eval_items: List[str] = ["score"],
-    ) -> None:
+    ) -> pd.DataFrame:
         self.logger.info(f"Evaluating absolute score: [{self.solver_version}]...")
         database_df = pd.read_csv(self.database_csv)
         score_df = database_df[
@@ -111,13 +111,15 @@ class Runner:
                     )
                 )
 
+        return score_df
+
     def evaluate_relative_score(
         self,
         solver_version: str,
         benchmark_solver_version: str,
         columns: Optional[List[str]] = None,
         eval_items: List[str] = ["score"],
-    ) -> None:
+    ) -> pd.DataFrame:
         self.logger.info(f"Comparing {solver_version} -> {benchmark_solver_version}")
         database_df = pd.read_csv(self.database_csv)
         score_df = database_df[
@@ -155,7 +157,9 @@ class Runner:
                     )
                 )
 
-    def list_solvers(self) -> None:
+        return score_df
+
+    def list_solvers(self) -> pd.DataFrame:
         database_df = pd.read_csv(self.database_csv)
         best_scores = (
             database_df.groupby("input_file")["score"].max().rename("best_score")
@@ -168,7 +172,9 @@ class Runner:
             .sort_values(by="relative_score", ascending=False)[:30]
         )
 
-    def add_log_to_database(self, df: pd.DataFrame) -> None:
+        return database_df
+
+    def add_log_to_database(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             df.to_csv(self.database_csv, mode="a", index=False, header=False)
         except (FileNotFoundError, pd.errors.EmptyDataError):
@@ -176,6 +182,8 @@ class Runner:
                 f"database_csv: {self.database_csv} not found, create new database_csv"
             )
             df.to_csv(self.database_csv, index=False)
+
+        return df
 
     def setup_logger(self, log_file: str) -> logging.Logger:
         logger = getLogger(__name__)

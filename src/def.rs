@@ -57,3 +57,19 @@ pub struct State {
     pub cards: Vec<Card>,
     pub projects: Vec<Project>,
 }
+
+pub struct Recorder {
+    pub scores: Vec<i64>,
+    pub invest_rounds: Vec<usize>,
+    pub x: Vec<i64>,
+}
+
+impl Recorder {
+    pub fn new() -> Recorder {
+        Recorder {
+            scores: vec![0],
+            invest_rounds: vec![],
+            x: vec![0; 5],
+        }
+    }
+}
