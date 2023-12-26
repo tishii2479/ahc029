@@ -51,14 +51,20 @@ pub struct Input {
     pub t: usize,
 }
 
+#[derive(Clone, Copy)]
 pub struct Param {
     pub overflow_alpha_refill: f64,
     pub overflow_alpha: f64,
+    pub overflow_alpha_all_refill: f64,
+    pub overflow_alpha_all: f64,
     pub cancel_alpha_refill: f64,
     pub cancel_alpha: f64,
+    pub cancel_alpha_all_refill: f64,
+    pub cancel_alpha_all: f64,
     pub invest_limit: usize,
     pub cancel_limit: usize,
     pub invest_cost: i64,
+    pub work_single_beta: f64,
 }
 
 #[derive(Debug, Clone)]

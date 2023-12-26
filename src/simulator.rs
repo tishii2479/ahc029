@@ -162,9 +162,10 @@ impl Interactor for MockInteractor {
     }
 }
 
-fn montecarlo(
+pub fn montecarlo(
     rounds: usize,
     cur_state: &State,
+    param: &Param,
     input: &Input,
     cur_t: usize,
     x: &Vec<i64>,
@@ -176,6 +177,7 @@ fn montecarlo(
 
     for _ in 0..rounds {
         let mut solver = Solver {
+            param: param.clone(),
             state: cur_state.clone(),
         };
         let mut mock_interactor = MockInteractor::new(

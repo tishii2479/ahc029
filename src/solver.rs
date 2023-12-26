@@ -1,5 +1,6 @@
 use crate::def::*;
 use crate::interactor::*;
+use crate::simulator::*;
 
 pub struct Solver {
     pub state: State,
@@ -30,6 +31,34 @@ impl Solver {
             }
 
             // 新しいカードを見て、補充するカードを決める
+            // const MONTE_CARLO_ROUND: usize = 50;
+            // let new_card = if t < 980 {
+            //     if t < input.t - 1 {
+            //         self.select_new_card(&new_cards, t)
+            //     } else {
+            //         0
+            //     }
+            // } else {
+            //     (0..new_cards.len())
+            //         .max_by_key(|&i| {
+            //             if new_cards[i].1 <= self.state.score {
+            //                 montecarlo(
+            //                     MONTE_CARLO_ROUND,
+            //                     &self.state,
+            //                     &self.param,
+            //                     input,
+            //                     t,
+            //                     &recorder.x,
+            //                     true,
+            //                     i,
+            //                     &new_cards,
+            //                 )
+            //             } else {
+            //                 -1
+            //             }
+            //         })
+            //         .unwrap()
+            // };
             let new_card = if t < input.t - 1 {
                 self.select_new_card(&new_cards, t)
             } else {
@@ -55,15 +84,25 @@ impl Solver {
             return (-INF, 0);
         }
 
-        let overflow_alpha: f64 = if refill {
+        let overflow_alpha = if refill {
             self.param.overflow_alpha_refill
         } else {
             self.param.overflow_alpha
         };
-        let cancel_alpha: f64 = if refill {
+        let overflow_alpha_all = if refill {
+            self.param.overflow_alpha_all_refill
+        } else {
+            self.param.overflow_alpha_all
+        };
+        let cancel_alpha = if refill {
             self.param.cancel_alpha_refill
         } else {
             self.param.cancel_alpha
+        };
+        let cancel_alpha_all = if refill {
+            self.param.cancel_alpha_all_refill
+        } else {
+            self.param.cancel_alpha_all
         };
 
         match card {
@@ -75,7 +114,7 @@ impl Solver {
                         }
                         (((*w as f64 / self.state.projects[i].h as f64)
                             .min(1.)
-                            .powf(2.)
+                            .powf(self.param.work_single_beta)
                             * self.state.projects[i].v as f64
                             - ((w - self.state.projects[i].h).max(0) as f64))
                             * 10000.) as i64
@@ -110,7 +149,7 @@ impl Solver {
                         .state
                         .projects
                         .iter()
-                        .map(|proj| (*w as f64 - proj.h as f64).max(0.) * overflow_alpha)
+                        .map(|proj| (*w as f64 - proj.h as f64).max(0.) * overflow_alpha_all)
                         .sum::<f64>());
                 (eval, 0)
             }
@@ -118,7 +157,7 @@ impl Solver {
                 let m = (0..self.state.projects.len())
                     .max_by_key(|&i| {
                         ((self.state.projects[i].h as f64 - self.state.projects[i].v as f64)
-                            / self.state.projects[i].h as f64
+                            / self.state.projects[i].h as f64 // TODO: 消す？
                             * 10000.)
                             .round() as i64
                     })
@@ -139,7 +178,7 @@ impl Solver {
                     .state
                     .projects
                     .iter()
-                    .map(|proj| proj.h as f64 * cancel_alpha - proj.v as f64)
+                    .map(|proj| proj.h as f64 * cancel_alpha_all - proj.v as f64)
                     .sum::<f64>()
                     - p as f64;
                 (eval, 0)
@@ -154,6 +193,10 @@ impl Solver {
                     .iter()
                     .filter(|&&card| card == Card::Invest)
                     .count();
+                // 1. 手持ちのカードが全て増資になった場合
+                // 2. 増資の期限が来た場合
+                // 3. 前回増資した場合（増資カードを消費している場合）
+                // 4. 増資回数がMAX_INVEST_LEVELに到達する場合
                 if self.state.cards.len() == invest_card_count
                     || ((t >= self.param.invest_limit || self.state.last_invest_round + 1 == t)
                         && p == 0)
