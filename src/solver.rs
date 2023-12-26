@@ -1,4 +1,5 @@
 use crate::def::*;
+use crate::interactor::*;
 
 pub struct Solver {
     pub state: State,
@@ -7,6 +8,45 @@ pub struct Solver {
 impl Solver {
     pub fn remain_w(&self, t: usize, p: i64) -> i64 {
         (999 - t as i64) * 2_i64.pow(self.state.invest_level as u32) + (self.state.score - p)
+    }
+
+    pub fn solve(&mut self, input: &Input, interactor: &mut IOInteractor) {
+        let mut recorder = Recorder::new();
+
+        for t in 0..input.t {
+            // 今持っているカードを見て、使うカードを決める
+            let (select_card, m) = self.select_use_card(t);
+
+            if self.state.cards[select_card] == Card::Invest {
+                self.state.last_invest_round = t;
+            }
+            self.state.use_card(select_card, m, interactor);
+            recorder.scores.push(self.state.score);
+
+            let new_cards = self.state.read_status(input, interactor);
+            for (card, _) in new_cards.iter() {
+                recorder.x[card.to_t()] += 1;
+            }
+
+            // 新しいカードを見て、補充するカードを決める
+            let new_card = if t < input.t - 1 {
+                self.select_new_card(&new_cards, t)
+            } else {
+                0
+            };
+            if new_cards[new_card].0 == Card::Invest {
+                recorder.invest_rounds.push(t);
+            }
+            self.state.refill_card(new_card, &new_cards, interactor);
+        }
+
+        // ビジュアライズ用
+        if cfg!(feature = "local") {
+            use std::io::Write;
+            let mut file = std::fs::File::create("score.log").unwrap();
+            writeln!(&mut file, "{:?}", recorder.scores).unwrap();
+            writeln!(&mut file, "{:?}", recorder.invest_rounds).unwrap();
+        }
     }
 
     pub fn eval(&self, card: &Card, p: i64, t: usize, refill: bool) -> (f64, usize) {
