@@ -51,6 +51,16 @@ pub struct Input {
     pub t: usize,
 }
 
+pub struct Param {
+    pub overflow_alpha_refill: f64,
+    pub overflow_alpha: f64,
+    pub cancel_alpha_refill: f64,
+    pub cancel_alpha: f64,
+    pub invest_limit: usize,
+    pub cancel_limit: usize,
+    pub invest_cost: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct State {
     pub last_invest_round: usize,

@@ -3,6 +3,7 @@ use crate::interactor::*;
 
 pub struct Solver {
     pub state: State,
+    pub param: Param,
 }
 
 impl Solver {
@@ -54,8 +55,16 @@ impl Solver {
             return (-INF, 0);
         }
 
-        let overflow_alpha: f64 = if refill { 0.5 } else { 2. };
-        let cancel_alpha: f64 = if refill { 1.1 } else { 5. };
+        let overflow_alpha: f64 = if refill {
+            self.param.overflow_alpha_refill
+        } else {
+            self.param.overflow_alpha
+        };
+        let cancel_alpha: f64 = if refill {
+            self.param.cancel_alpha_refill
+        } else {
+            self.param.cancel_alpha
+        };
 
         match card {
             Card::WorkSingle(w) => {
@@ -114,7 +123,7 @@ impl Solver {
                             .round() as i64
                     })
                     .unwrap();
-                if t >= self.cancel_limit() {
+                if t >= self.param.cancel_limit {
                     return (-INF, m);
                 }
                 let eval = self.state.projects[m].h as f64 * cancel_alpha
@@ -123,7 +132,7 @@ impl Solver {
                 (eval, m)
             }
             Card::CancelAll => {
-                if t >= self.cancel_limit() {
+                if t >= self.param.cancel_limit {
                     return (-INF, 0);
                 }
                 let eval = self
@@ -146,7 +155,7 @@ impl Solver {
                         .iter()
                         .filter(|&&card| card == Card::Invest)
                         .count()
-                    || ((t >= self.invest_limit() || self.state.last_invest_round + 1 == t)
+                    || ((t >= self.param.invest_limit || self.state.last_invest_round + 1 == t)
                         && p == 0)
                 {
                     return (INF, 0);
@@ -164,7 +173,7 @@ impl Solver {
 
         match card {
             Card::Invest => {
-                if self.state.invest_level >= MAX_INVEST_LEVEL || t >= self.invest_limit() {
+                if self.state.invest_level >= MAX_INVEST_LEVEL || t >= self.param.invest_limit {
                     return -INF;
                 }
                 let invest_card_count = self
@@ -174,7 +183,7 @@ impl Solver {
                     .filter(|&&card| card == Card::Invest)
                     .count();
                 if (self.state.score as f64 >= p as f64 * 1.5
-                    && p / 2_i64.pow(self.state.invest_level as u32) < self.invest_cost())
+                    && p / 2_i64.pow(self.state.invest_level as u32) < self.param.invest_cost)
                     || invest_card_count == self.state.cards.len() - 1
                 {
                     INF
@@ -225,26 +234,5 @@ impl Solver {
         }
 
         (card_idx[0], evals[card_idx[0]].1)
-    }
-
-    pub fn invest_cost(&self) -> i64 {
-        500
-    }
-
-    pub fn invest_limit(&self) -> usize {
-        900
-        // TODO: モンテカルロで最適なターンを求めた方が良い
-        //     let invest_count = self.state.invest_level
-        //         + self
-        //             .cards
-        //             .iter()
-        //             .filter(|&&card| Card::Invest == card)
-        //             .count();
-        //     let mean_round = self.state.last_invest_round / invest_count.max(1);
-        //     1000 - mean_round.max(100)
-    }
-
-    pub fn cancel_limit(&self) -> usize {
-        960
     }
 }

@@ -48,6 +48,7 @@ class Runner:
         solver_version: str,
         database_csv: str,
         log_file: str,
+        verbose: int = 10,
     ) -> None:
         self.input_class = input_class
         self.result_class = result_class
@@ -55,7 +56,7 @@ class Runner:
         self.solver_cmd = solver_cmd
         self.solver_version = solver_version
         self.database_csv = database_csv
-        self.logger = self.setup_logger(log_file=log_file)
+        self.logger = self.setup_logger(log_file=log_file, verbose=verbose)
 
     def run_case(self, input_file: str, output_file: str) -> IResult:
         cmd = f"{self.solver_cmd} < {input_file} > {output_file}"
@@ -67,10 +68,11 @@ class Runner:
     def run(
         self,
         cases: list[tuple[str, str]],
+        verbose: int = 10,
         ignore: bool = False,
     ) -> pd.DataFrame:
         inputs = list(map(lambda x: self.input_class(x[0]), cases))
-        results = Parallel(n_jobs=-1, verbose=10, batch_size=10)(
+        results = Parallel(n_jobs=-1, verbose=verbose, batch_size=10)(
             delayed(self.run_case)(input_file, output_file)
             for input_file, output_file in cases
         )
@@ -185,16 +187,17 @@ class Runner:
 
         return df
 
-    def setup_logger(self, log_file: str) -> logging.Logger:
+    def setup_logger(self, log_file: str, verbose: int) -> logging.Logger:
         logger = getLogger(__name__)
         logger.setLevel(logging.INFO)
 
-        stream_handler = StreamHandler()
-        stream_handler.setLevel(logging.DEBUG)
+        if verbose > 0:
+            stream_handler = StreamHandler()
+            stream_handler.setLevel(logging.DEBUG)
+            logger.addHandler(stream_handler)
+
         file_handler = FileHandler(log_file, "a")
         file_handler.setLevel(logging.DEBUG)
-
-        logger.addHandler(stream_handler)
         logger.addHandler(file_handler)
 
         return logger
@@ -250,6 +253,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--list-solver", action="store_true")
     parser.add_argument("-i", "--ignore", action="store_true")
     parser.add_argument("-n", "--case_num", type=int, default=100)
+    parser.add_argument("-v", "--verbose", type=int, default=10)
     parser.add_argument(
         "-s",
         "--solver-path",
@@ -293,10 +297,7 @@ if __name__ == "__main__":
             (f"{args.data_dir}/in/{seed:04}.txt", f"{args.data_dir}/out/{seed:04}.txt")
             for seed in range(args.case_num)
         ]
-        runner.run(
-            cases=cases,
-            ignore=args.ignore,
-        )
+        runner.run(cases=cases, ignore=args.ignore, verbose=args.verbose)
         runner.evaluate_relative_score(
             solver_version=args.solver_version,
             benchmark_solver_version=args.benchmark_solver_version,
