@@ -29,6 +29,17 @@ impl Card {
             _ => panic!("invalid card type: {t}"),
         }
     }
+
+    pub fn to_t(&self) -> usize {
+        match self {
+            Card::WorkSingle(_) => 0,
+            Card::WorkAll(_) => 1,
+            Card::CancelSingle => 2,
+            Card::CancelAll => 3,
+            Card::Invest => 4,
+            Card::None => panic!(),
+        }
+    }
 }
 
 pub struct Input {
@@ -38,7 +49,7 @@ pub struct Input {
     pub t: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct State {
     pub last_invest_round: usize,
     pub invest_level: usize,

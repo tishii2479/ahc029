@@ -3,13 +3,19 @@ use std::io::{Stdin, Write};
 
 use proconio::*;
 
-pub struct Interactor {
+pub trait Interactor {
+    fn output_c(&mut self, c: usize, m: usize);
+    fn output_r(&mut self, r: usize);
+    fn read_status(&mut self, input: &Input) -> (Vec<Project>, i64, Vec<(Card, i64)>);
+}
+
+pub struct IOInteractor {
     source: proconio::source::line::LineSource<std::io::BufReader<Stdin>>,
 }
 
-impl Interactor {
-    pub fn new() -> Interactor {
-        Interactor {
+impl IOInteractor {
+    pub fn new() -> IOInteractor {
+        IOInteractor {
             source: proconio::source::line::LineSource::new(std::io::BufReader::new(
                 std::io::stdin(),
             )),
@@ -44,17 +50,23 @@ impl Interactor {
         )
     }
 
-    pub fn output_c(&self, c: usize, m: usize) {
+    fn flush(&self) {
+        std::io::stdout().flush().unwrap();
+    }
+}
+
+impl Interactor for IOInteractor {
+    fn output_c(&mut self, c: usize, m: usize) {
         println!("{} {}", c, m);
         self.flush();
     }
 
-    pub fn output_r(&self, r: usize) {
+    fn output_r(&mut self, r: usize) {
         println!("{}", r);
         self.flush();
     }
 
-    pub fn read_status(&mut self, input: &Input) -> (Vec<Project>, i64, Vec<(Card, i64)>) {
+    fn read_status(&mut self, input: &Input) -> (Vec<Project>, i64, Vec<(Card, i64)>) {
         input! {
             from &mut self.source,
             hv: [(i64, i64); input.m],
@@ -68,9 +80,5 @@ impl Interactor {
             .map(|(t, w, p)| (Card::from_tw(t, w), p))
             .collect();
         (projects, money, cards)
-    }
-
-    fn flush(&self) {
-        std::io::stdout().flush().unwrap();
     }
 }

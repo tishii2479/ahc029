@@ -1,19 +1,25 @@
 mod def;
 mod interactor;
+mod simulator;
 mod util;
 
 use crate::def::*;
 use crate::interactor::*;
+use crate::simulator::*;
 use crate::util::*;
 
-fn read_status(state: &mut State, input: &Input, interactor: &mut Interactor) -> Vec<(Card, i64)> {
+fn read_status<I: Interactor>(
+    state: &mut State,
+    input: &Input,
+    interactor: &mut I,
+) -> Vec<(Card, i64)> {
     let (projects, score, new_cards) = interactor.read_status(input);
     state.projects = projects;
     state.score = score;
     new_cards
 }
 
-fn use_card(use_card: usize, m: usize, state: &mut State, interactor: &mut Interactor) {
+fn use_card<I: Interactor>(use_card: usize, m: usize, state: &mut State, interactor: &mut I) {
     interactor.output_c(use_card, m);
     if let Card::Invest = state.cards[use_card] {
         state.invest_level += 1;
@@ -21,11 +27,11 @@ fn use_card(use_card: usize, m: usize, state: &mut State, interactor: &mut Inter
     state.cards[use_card] = Card::None;
 }
 
-fn refill_card(
+fn refill_card<I: Interactor>(
     selected_card: usize,
     new_cards: &Vec<(Card, i64)>,
     state: &mut State,
-    interactor: &mut Interactor,
+    interactor: &mut I,
 ) {
     interactor.output_r(selected_card);
     let i = state.empty_card_index().unwrap();
@@ -237,48 +243,94 @@ impl State {
     }
 }
 
-fn solve(state: &mut State, input: &Input, interactor: &mut Interactor) {
-    let mut scores = vec![0];
-    let mut invest_rounds = vec![];
+fn montecarlo(rounds: usize, cur_state: &State, input: &Input, cur_t: usize, x: &Vec<i64>) -> i64 {
+    let mut score_sum = 0;
+
+    for _ in 0..rounds {
+        let mut state = cur_state.clone();
+        let mut mock_interactor = MockInteractor::new(x, cur_t, &state);
+        let mut recorder: Recorder = Recorder::new();
+        for t in cur_t..input.t {
+            run_one_round(t, &mut state, input, &mut mock_interactor, &mut recorder);
+        }
+        eprintln!("{}", state.score);
+        score_sum += state.score;
+    }
+    score_sum / rounds as i64
+}
+
+fn run_one_round<I: Interactor>(
+    t: usize,
+    state: &mut State,
+    input: &Input,
+    interactor: &mut I,
+    recorder: &mut Recorder,
+) {
+    // 今持っているカードを見て、使うカードを決める
+    let (select_card, m) = state.select_use_card(t);
+
+    if state.cards[select_card] == Card::Invest {
+        state.last_invest_round = t;
+    }
+    use_card(select_card, m, state, interactor);
+    recorder.scores.push(state.score);
+
+    let new_cards = read_status(state, input, interactor);
+    for (card, _) in new_cards.iter() {
+        recorder.x[card.to_t()] += 1;
+    }
+
+    // 新しいカードを見て、補充するカードを決める
+    let new_card = if t < input.t - 1 {
+        state.select_new_card(&new_cards, t)
+    } else {
+        0
+    };
+    if new_cards[new_card].0 == Card::Invest {
+        recorder.invest_rounds.push(t);
+    }
+    refill_card(new_card, &new_cards, state, interactor);
+}
+
+struct Recorder {
+    scores: Vec<i64>,
+    invest_rounds: Vec<usize>,
+    x: Vec<i64>,
+}
+
+impl Recorder {
+    fn new() -> Recorder {
+        Recorder {
+            scores: vec![0],
+            invest_rounds: vec![],
+            x: vec![0; 5],
+        }
+    }
+}
+
+fn solve(state: &mut State, input: &Input, interactor: &mut IOInteractor) {
+    let mut recorder = Recorder::new();
 
     for t in 0..input.t {
-        // 今持っているカードを見て、使うカードを決める
-        let (select_card, m) = state.select_use_card(t);
+        run_one_round(t, state, input, interactor, &mut recorder);
 
-        if state.cards[select_card] == Card::Invest {
-            state.last_invest_round = t;
+        if t == 900 {
+            montecarlo(3, state, input, t, &recorder.x);
         }
-        use_card(select_card, m, state, interactor);
-        scores.push(state.score);
-
-        let new_cards = read_status(state, input, interactor);
-
-        // 新しいカードを見て、補充するカードを決める
-        let new_card = if t < input.t - 1 {
-            state.select_new_card(&new_cards, t)
-        } else {
-            0
-        };
-        if new_cards[new_card].0 == Card::Invest {
-            invest_rounds.push(t);
-        }
-        refill_card(new_card, &new_cards, state, interactor);
     }
 
     // ビジュアライズ用
     if cfg!(feature = "local") {
         use std::io::Write;
         let mut file = std::fs::File::create("score.log").unwrap();
-        writeln!(&mut file, "{:?}", scores).unwrap();
-        writeln!(&mut file, "{:?}", invest_rounds).unwrap();
+        writeln!(&mut file, "{:?}", recorder.scores).unwrap();
+        writeln!(&mut file, "{:?}", recorder.invest_rounds).unwrap();
     }
-
-    eprintln!("invest_level:    {}", state.invest_level);
 }
 
 fn main() {
     time::start_clock();
-    let mut interactor = Interactor::new();
+    let mut interactor = IOInteractor::new();
     let (input, mut state) = interactor.read_input();
 
     solve(&mut state, &input, &mut interactor);
