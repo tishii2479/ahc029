@@ -31,39 +31,39 @@ impl Solver {
             }
 
             // 新しいカードを見て、補充するカードを決める
-            // const MONTE_CARLO_ROUND: usize = 50;
-            // let new_card = if t < 980 {
-            //     if t < input.t - 1 {
-            //         self.select_new_card(&new_cards, t)
-            //     } else {
-            //         0
-            //     }
-            // } else {
-            //     (0..new_cards.len())
-            //         .max_by_key(|&i| {
-            //             if new_cards[i].1 <= self.state.score {
-            //                 montecarlo(
-            //                     MONTE_CARLO_ROUND,
-            //                     &self.state,
-            //                     &self.param,
-            //                     input,
-            //                     t,
-            //                     &recorder.x,
-            //                     true,
-            //                     i,
-            //                     &new_cards,
-            //                 )
-            //             } else {
-            //                 -1
-            //             }
-            //         })
-            //         .unwrap()
-            // };
-            let new_card = if t < input.t - 1 {
-                self.select_new_card(&new_cards, t)
+            const MONTE_CARLO_ROUND: usize = 50;
+            let new_card = if t < 980 {
+                if t < input.t - 1 {
+                    self.select_new_card(&new_cards, t)
+                } else {
+                    0
+                }
             } else {
-                0
+                (0..new_cards.len())
+                    .max_by_key(|&i| {
+                        if new_cards[i].1 <= self.state.score {
+                            montecarlo(
+                                MONTE_CARLO_ROUND,
+                                &self.state,
+                                &self.param,
+                                input,
+                                t,
+                                &recorder.x,
+                                true,
+                                i,
+                                &new_cards,
+                            )
+                        } else {
+                            -1
+                        }
+                    })
+                    .unwrap()
             };
+            // let new_card = if t < input.t - 1 {
+            //     self.select_new_card(&new_cards, t)
+            // } else {
+            //     0
+            // };
             if new_cards[new_card].0 == Card::Invest {
                 recorder.invest_rounds.push(t);
             }

@@ -169,7 +169,8 @@ class Runner:
         database_df = pd.merge(database_df, best_scores, on="input_file", how="left")
         database_df["relative_score"] = database_df["score"] / database_df["best_score"]
         self.logger.info(
-            database_df.groupby("solver_version")[["relative_score", "score"]]
+            database_df[database_df.solver_version.str.startswith("optuna") == False]
+            .groupby("solver_version")[["relative_score", "score"]]
             .mean()
             .sort_values(by="relative_score", ascending=False)[:30]
         )
@@ -295,7 +296,7 @@ if __name__ == "__main__":
         )
         cases = [
             (f"{args.data_dir}/in/{seed:04}.txt", f"{args.data_dir}/out/{seed:04}.txt")
-            for seed in range(args.case_num)
+            for seed in range(1000, 1000 + args.case_num)
         ]
         runner.run(cases=cases, ignore=args.ignore, verbose=args.verbose)
         runner.evaluate_relative_score(
