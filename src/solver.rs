@@ -34,7 +34,7 @@ impl Solver {
             const MONTE_CARLO_ROUND: usize = 30;
             let new_card = if t < 990 {
                 self.select_new_card(&new_cards, t)
-            } else {
+            } else if t < input.t - 1 {
                 (0..new_cards.len())
                     .max_by_key(|&i| {
                         if new_cards[i].1 <= self.state.score {
@@ -54,6 +54,8 @@ impl Solver {
                         }
                     })
                     .unwrap()
+            } else {
+                0
             };
             // モンテカルロしない場合
             // let new_card = if t < input.t - 1 {
