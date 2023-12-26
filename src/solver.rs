@@ -148,15 +148,16 @@ impl Solver {
                 if self.state.invest_level >= MAX_INVEST_LEVEL {
                     return (-INF, 0);
                 }
-                if self.state.cards.len()
-                    == self
-                        .state
-                        .cards
-                        .iter()
-                        .filter(|&&card| card == Card::Invest)
-                        .count()
+                let invest_card_count = self
+                    .state
+                    .cards
+                    .iter()
+                    .filter(|&&card| card == Card::Invest)
+                    .count();
+                if self.state.cards.len() == invest_card_count
                     || ((t >= self.param.invest_limit || self.state.last_invest_round + 1 == t)
                         && p == 0)
+                    || invest_card_count + self.state.invest_level == MAX_INVEST_LEVEL
                 {
                     return (INF, 0);
                 }
@@ -185,6 +186,7 @@ impl Solver {
                 if (self.state.score as f64 >= p as f64 * 1.5
                     && p / 2_i64.pow(self.state.invest_level as u32) < self.param.invest_cost)
                     || invest_card_count == self.state.cards.len() - 1
+                    || self.state.invest_level == MAX_INVEST_LEVEL - 1
                 {
                     INF
                 } else {

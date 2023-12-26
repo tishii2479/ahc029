@@ -11,7 +11,7 @@ use crate::solver::*;
 use crate::util::*;
 
 fn load_params() -> Param {
-    if true {
+    if false {
         use std::env;
         let args: Vec<String> = env::args().collect();
         Param {
@@ -25,14 +25,13 @@ fn load_params() -> Param {
         }
     } else {
         Param {
-            overflow_alpha_refill: 0.5,
-            overflow_alpha: 2.,
-            cancel_alpha_refill: 1.1,
-            cancel_alpha: 5.,
-            // TODO: モンテカルロで最適なターンを動的に求めた方が良い
-            invest_limit: 900,
-            cancel_limit: 960,
-            invest_cost: 500,
+            cancel_alpha: 3.6968886682561326,
+            cancel_alpha_refill: 1.0809478571856825,
+            cancel_limit: 979,
+            invest_cost: 510,
+            invest_limit: 863,
+            overflow_alpha: 1.7353485583787858,
+            overflow_alpha_refill: 0.49576308694111954,
         }
     }
 }
