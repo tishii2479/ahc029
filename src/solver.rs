@@ -31,7 +31,7 @@ impl Solver {
             }
 
             // 新しいカードを見て、補充するカードを決める
-            const MONTE_CARLO_ROUND: usize = 30;
+            const MONTE_CARLO_ROUND: usize = 100;
             let new_card = if t < 990 {
                 self.select_new_card(&new_cards, t)
             } else if t < input.t - 1 {
@@ -192,6 +192,7 @@ impl Solver {
                     .iter()
                     .filter(|&&card| card == Card::Invest)
                     .count();
+
                 // 1. 手持ちのカードが全て増資になった場合
                 // 2. 増資の期限が来た場合
                 // 3. 前回増資した場合（増資カードを消費している場合）
@@ -247,13 +248,15 @@ impl Solver {
         let mut card_idx = (0..new_cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| eval_refills[*j].partial_cmp(&eval_refills[*i]).unwrap());
 
-        println!("# eval_refill, m, card_type, p");
-        for &i in card_idx.iter() {
-            println!(
-                "# {} {:.3} {:?}, {}",
-                i, eval_refills[i], new_cards[i].0, new_cards[i].1
-            );
-        }
+        // if cfg!(feature = "local") {
+        //     println!("# eval_refill, m, card_type, p");
+        //     for &i in card_idx.iter() {
+        //         println!(
+        //             "# {} {:.3} {:?}, {}",
+        //             i, eval_refills[i], new_cards[i].0, new_cards[i].1
+        //         );
+        //     }
+        // }
 
         card_idx[0]
     }
@@ -269,13 +272,15 @@ impl Solver {
         let mut card_idx = (0..self.state.cards.len()).collect::<Vec<usize>>();
         card_idx.sort_by(|i, j| evals[*j].partial_cmp(&evals[*i]).unwrap());
 
-        println!("# eval, m, card_type, p");
-        for &i in card_idx.iter() {
-            println!(
-                "# {} {:.3} {} {:?}",
-                i, evals[i].0, evals[i].1, self.state.cards[i]
-            );
-        }
+        // if cfg!(feature = "local") {
+        //     println!("# eval, m, card_type, p");
+        //     for &i in card_idx.iter() {
+        //         println!(
+        //             "# {} {:.3} {} {:?}",
+        //             i, evals[i].0, evals[i].1, self.state.cards[i]
+        //         );
+        //     }
+        // }
 
         (card_idx[0], evals[card_idx[0]].1)
     }
