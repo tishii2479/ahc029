@@ -65,12 +65,12 @@ impl MockInteractor {
     ) -> MockInteractor {
         let mut rng = ChaCha20Rng::seed_from_u64(rnd::gen_range(0, 10000000000) as u64);
         let mut new_projects = vec![];
-        for _ in 0..state.projects.len() * (1005 - t) {
+        let remain_t = 1005 - t;
+        for _ in 0..state.projects.len() * remain_t {
             new_projects.push(generate_project(&mut rng));
         }
-        let mut new_cards = vec![];
-        for i in 0..(1005 - t) {
-            new_cards.push(vec![]);
+        let mut new_cards = vec![vec![]; remain_t];
+        for i in 0..remain_t {
             new_cards[i].push((Card::WorkSingle(1), 0));
             for _ in 1..state.cards.len() {
                 new_cards[i].push(generate_card(&mut rng, state.projects.len(), &x));
@@ -194,8 +194,8 @@ pub fn montecarlo(
                 .state
                 .refill_card(new_select_card, new_cards, &mut mock_interactor);
         }
-
-        for t in cur_t..input.t {
+        let start_t = if refill_first { cur_t + 1 } else { cur_t };
+        for t in start_t..input.t {
             // 今持っているカードを見て、使うカードを決める
             let (select_card, m) = solver.select_use_card(t);
 
