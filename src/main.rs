@@ -10,7 +10,7 @@ use crate::solver::*;
 use crate::util::*;
 
 fn load_params() -> Param {
-    if true {
+    if false {
         use std::env;
         let args: Vec<String> = env::args().collect();
         Param {
@@ -29,10 +29,10 @@ fn load_params() -> Param {
         }
     } else {
         Param {
-            cancel_alpha: 3.6968886682561326,
-            cancel_alpha_refill: 1.0809478571856825,
-            cancel_alpha_all: 3.6968886682561326,
-            cancel_alpha_all_refill: 1.0809478571856825,
+            cancel_alpha: 3.9025157664873658,
+            cancel_alpha_all: 5.034673414949709,
+            cancel_alpha_all_refill: 1.070299470579473,
+            cancel_alpha_refill: 1.0009104398160726,
             cancel_limit: 979,
             invest_cost: 510,
             invest_limit: 863,
@@ -40,7 +40,7 @@ fn load_params() -> Param {
             overflow_alpha_all: 2.7694849713061416,
             overflow_alpha_all_refill: 0.5531191229327318,
             overflow_alpha_refill: 0.25378716369770815,
-            work_single_beta: 2.,
+            work_single_beta: 2.898910615818517,
         }
     }
 }
